@@ -1,0 +1,1436 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM 推理选型计算器 · 显存 / KV / 带宽 / 算力 / 墙</title>
+<style>
+:root{--bg:#0a0e15;--panel:#111827;--panel2:#161f31;--line:#243146;--txt:#dce6f5;--dim:#8899b3;--acc:#4cc9f0;--ok:#39d98a;--warn:#ffb703;--bad:#ff5d73;--vio:#b388ff}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e1522,#0a0e15)}
+.brand b{font-size:17px;letter-spacing:.3px}
+.brand span{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+.presetbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select,input{background:#0d1420;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;outline:none;width:100%}
+select:focus,input:focus{border-color:var(--acc)}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#0d1420;color:var(--dim);white-space:nowrap}
+.chip b{color:var(--ok)}
+.switch{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#0d1420}
+.seg{font:inherit;font-size:12px;padding:5px 13px;border:0;background:transparent;color:var(--dim);cursor:pointer}
+.seg:hover{color:var(--text)}
+.seg.on{background:#16324d;color:var(--acc);font-weight:600}
+.wrap{display:grid;grid-template-columns:392px minmax(0,1fr);gap:16px;padding:16px;max-width:1600px;margin:0 auto}
+@media(max-width:1120px){.wrap{grid-template-columns:1fr}}
+.col{min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:14px;font-weight:600;color:#a9bcd8;letter-spacing:.3px}
+details.grp{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+details.grp>summary{cursor:pointer;padding:11px 14px;font-weight:600;font-size:13px;color:#b9cbe4;list-style:none;user-select:none}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary:before{content:"▸ ";color:var(--acc)}
+details.grp[open]>summary:before{content:"▾ "}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px;padding:0 14px 14px}
+.qbar{padding-bottom:10px}
+.qnote{font-weight:400;font-size:11.5px;color:var(--dim)}
+.qsum{margin:2px 14px 4px;font-size:11.5px;color:#7f93b0;line-height:1.6}
+.qgpu{grid-column:span 2;font-size:11.5px;color:#7f93b0;line-height:1.55;margin:-2px 0 4px;padding:6px 8px;background:#0d1420;border:1px solid var(--line);border-radius:8px}
+.qgpu b{color:#9fb0c8}
+.qacts{display:flex;gap:8px;align-items:center;margin:6px 14px 12px}
+.btn{font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:#0d1420;color:#a9bcd8;cursor:pointer}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.tiny{font-size:11px;color:var(--ok)}
+.strip{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;font-size:12px;color:#9fb0c8}
+.strip span{background:#111827;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.strip span b{color:var(--acc);font-weight:600}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld>span{font-size:11.5px;color:var(--dim)}
+.fld>span i{font-style:normal;color:#5f7290}
+.fld.wide{grid-column:span 2}
+.verdict{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:14px;border:1px solid var(--line);background:var(--panel);margin-bottom:14px}
+.vtag{font-size:20px;font-weight:700;padding:8px 14px;border-radius:10px;white-space:nowrap;background:#1b2436}
+.vtext{font-size:14px;color:#c8d6ea}
+.vtext small{display:block;color:var(--dim);font-size:12.5px;margin-top:3px;line-height:1.5}
+.bad .vtag{color:var(--bad);background:#33131b}
+.warn .vtag{color:var(--warn);background:#33270e}
+.ok .vtag{color:var(--ok);background:#0f2c20}
+.acc .vtag{color:var(--acc);background:#0c2a35}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.kpi b{display:block;font-size:21px;font-weight:650;letter-spacing:.4px;font-variant-numeric:tabular-nums}
+.kpi b small{font-size:12px;font-weight:400;color:var(--dim);margin-left:3px}
+.kpi span{font-size:11.5px;color:var(--dim)}
+.bar{display:flex;height:22px;border-radius:7px;overflow:hidden;background:#0c1220;border:1px solid var(--line)}
+.bar>i{display:block;height:100%}
+.lg{display:flex;flex-wrap:wrap;gap:14px;margin-top:9px;font-size:12px;color:var(--dim)}
+.lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:88px 1fr 74px;gap:10px;align-items:center;font-size:12.5px}
+.row .t{height:9px;border-radius:5px;background:#0c1220;overflow:hidden}
+.row .t i{display:block;height:100%}
+.row .n{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+.wrow{margin-bottom:12px}
+.wtop{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:4px}
+.wk{color:#c9d7ea}
+.wv{color:var(--dim);font-variant-numeric:tabular-nums;font-size:12px}
+.wbar{height:6px;border-radius:4px;background:#0c1220;overflow:hidden}
+.wbar i{display:block;height:100%;border-radius:4px}
+.wdesc{font-size:11.5px;color:#7f93b0;margin-top:5px;line-height:1.55}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}
+.chart{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px}
+.chart figcaption{font-size:11.5px;color:var(--dim);padding:2px 6px 6px}
+svg{display:block;width:100%;height:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #1b2436;vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:11.5px}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+code{background:#0c1220;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px;color:#9fd0e8;white-space:normal;word-break:break-word}
+.card table{min-width:0}
+.adv li{margin:4px 0;font-size:12.5px;color:#c3d2e6}
+.err{color:var(--ok)}
+.bigerr{color:var(--warn)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.muted{color:var(--dim)}
+footer{color:#4d5c74;font-size:11.5px;text-align:center;padding:0 16px 26px;line-height:1.8}
+footer a{color:#5b7ea8;text-decoration:none}
+footer a:hover{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>LLM 推理选型计算器</b><span>输入模型 / 硬件 / 负载 → 显存分解 · KV 容量 · TTFT/TPOT · 吞吐 · 瓶颈墙</span></div>
+  <div class="presetbar">
+    <div class="switch" id="modeSwitch">
+      <button class="seg on" data-v="0">一体部署</button>
+      <button class="seg" data-v="1">PD 分离</button>
+    </div>
+    <span class="chip" id="cert">校验中…</span>
+  </div>
+</header>
+<div class="wrap">
+  <aside class="col" id="inputs"></aside>
+  <main class="col" id="out"></main>
+</div>
+<footer>依据：roofline（Williams 2009）· 分页 KV / GQA / MLA（<a href="https://arxiv.org/abs/2309.06180">vLLM, SOSP'23</a> · <a href="https://arxiv.org/abs/2405.04434">DeepSeek-V2</a> · <a href="https://arxiv.org/abs/2305.13245">GQA</a>）· 投机解码 E=(1-α^(γ+1))/(1-α)（<a href="https://arxiv.org/abs/2211.17192">Leviathan, ICML'23</a>）· 连续批处理稳态近似。<br>效率系数（MFU / 带宽效率 / 固定开销）可在「⑤ 校准系数」按本机压测反推；校验明细见 validation-report.md。</footer>
+
+<script>
+/* ==ENGINE-START== */
+const ENGINE = (function () {
+  const GB = 1e9, GIB = 1073741824;
+
+  const HW = {
+    'g5090': { n: 'RTX 5090 32G',    vram: 31.84, bw: 1792, flops: 209.5, link: 64,   lat: 8,  bwEff: 0.78, mfuPre: 0.4,  mfuDec: 0.10, tag: '高带宽·消费卡', note: 'GDDR7 1792 GB/s，无 NVLink（只有 PCIe 5.0），FP8 约 419 TFLOPS' },
+    'g4090': { n: 'RTX 4090 24G',    vram: 23.99, bw: 1008, flops: 165,   link: 32,   lat: 9,  bwEff: 0.75, mfuPre: 0.4,  mfuDec: 0.10, tag: '性价比·显存紧', note: '1008 GB/s、24 GiB，跑 30B 以上基本要 2 卡起' },
+    'l20':   { n: 'L20 48G',         vram: 47.8,  bw: 864,  flops: 119,   link: 32,   lat: 9,  bwEff: 0.75, mfuPre: 0.4,  mfuDec: 0.10, tag: '大显存·低功耗', note: '48 GiB 但只有 864 GB/s，decode 容易被带宽卡住' },
+    'a100':  { n: 'A100 80G SXM',    vram: 79.4,  bw: 2039, flops: 312,   link: 600,  lat: 6,  bwEff: 0.8,  mfuPre: 0.45, mfuDec: 0.12, tag: '均衡·NVLink', note: '2 TB/s + 80 GiB + 600 GB/s NVLink，无 FP8 单元' },
+    'h100':  { n: 'H100 80G SXM',    vram: 79.4,  bw: 3350, flops: 989,   link: 900,  lat: 5,  bwEff: 0.85, mfuPre: 0.45, mfuDec: 0.12, tag: '高算力·NVLink', note: '3.35 TB/s + 989 TFLOPS BF16，FP8 翻倍到 1979' },
+    'h200':  { n: 'H200 141G',       vram: 140.4, bw: 4800, flops: 989,   link: 900,  lat: 5,  bwEff: 0.85, mfuPre: 0.45, mfuDec: 0.12, tag: '大显存·高带宽', note: '141 GiB + 4.8 TB/s，长上下文和大 KV 的首选' },
+    'b200':  { n: 'B200 180G',       vram: 179.5, bw: 8000, flops: 2250,  link: 1800, lat: 4,  bwEff: 0.8,  mfuPre: 0.4,  mfuDec: 0.12, tag: '最强算力·8TB/s', note: '8 TB/s、180 GiB、1.8 TB/s NVLink，跑 MoE 大模型最省卡' },
+    '910b':  { n: 'Ascend 910B 64G', vram: 62.4,  bw: 1600, flops: 320,   link: 392,  lat: 10, bwEff: 0.7,  mfuPre: 0.35, mfuDec: 0.10, tag: '国产·HCCS', note: '64 GiB、1.6 TB/s、392 GB/s HCCS，生态适配需额外验证' }
+  };
+
+  const BASE = {
+    'model.params': 30.9, 'model.active': 30.9, 'model.layers': 64, 'model.hidden': 6144,
+    'model.heads': 24, 'model.kvHeads': 4, 'model.headDim': 256, 'model.attn': 'gqa',
+    'model.mlaLatent': 512, 'model.mlaRope': 64, 'model.wBytes': 1, 'model.kvBytes': 1, 'model.window': 0,
+    'model.kvOverride': 0, 'model.activePre': 0, 'model.attnWin': 0,
+    'hw.hwsel': 'g5090', 'hw.count': 2, 'hw.tp': 2, 'hw.pp': 1,
+    'hw.vram': 31.84, 'hw.bw': 1792, 'hw.flops': 419, 'hw.link': 64, 'hw.lat': 8,
+    'hw.util': 0.9, 'hw.mfuPre': 0.4, 'hw.mfuDec': 0.1, 'hw.bwEff': 0.78, 'hw.overlap': 0.3,
+    'load.inLen': 512, 'load.outLen': 128, 'load.conc': 32, 'load.maxLen': 8192,
+    'load.batchTokens': 2048, 'load.prefixHit': 0, 'load.sloTTFT': 500, 'load.sloTPOT': 50, 'load.qps': 0,
+    'spec.on': 0, 'spec.gamma': 3, 'spec.alpha': 0.45, 'spec.cost': 0.02, 'spec.draft': 0, 'spec.E': 0,
+    'load.overhead': 8, 'load.stepMs': 1.5, 'load.actBase': 0.6, 'load.actCoef': 6, 'load.queue': 0.3,
+    'model.id': 'qwen3.8-27b', 'load.work': 'bench', 'spec.method': 'off',
+    // ---- PD 分离（Prefill / Decode 分开部署）----
+    'pd.on': 0,
+    'pd.preHw': 'h100', 'pd.preCount': 2, 'pd.preTp': 1, 'pd.prePp': 1, 'pd.preUtil': 0.9,
+    'pd.decHw': 'h200', 'pd.decCount': 2, 'pd.decTp': 1, 'pd.decPp': 1, 'pd.decUtil': 0.9,
+    'pd.link': 25, 'pd.linkEff': 0.8, 'pd.handoff': 6
+  };
+
+  const PRESETS = {
+    qwen27b: { label: '本机实测：Qwen3.8-27B-FP8 × 2×RTX5090（TP=2）', v: Object.assign({}, BASE, { 'load.inLen': 371 }) },
+    qwen32b: { label: 'Qwen3-32B-AWQ 单卡 RTX5090（TP=1）', v: Object.assign({}, BASE, {
+      'model.params': 32.8, 'model.active': 32.8, 'model.layers': 64, 'model.hidden': 5120,
+      'model.heads': 64, 'model.kvHeads': 8, 'model.headDim': 128, 'model.wBytes': 0.53, 'model.kvBytes': 1,
+      'hw.hwsel': 'g5090', 'hw.count': 1, 'hw.tp': 1, 'hw.vram': 31.84, 'hw.bw': 1792, 'hw.flops': 419, 'hw.link': 0,
+      'load.inLen': 512, 'load.outLen': 128, 'load.conc': 8, 'load.maxLen': 16384, 'load.actBase': 1.2, 'load.queue': 0.14 }) },
+    llama8b: { label: 'Llama-3-8B BF16 × A100 80G（单卡）', v: Object.assign({}, BASE, {
+      'model.params': 8.03, 'model.active': 8.03, 'model.layers': 32, 'model.hidden': 4096,
+      'model.heads': 32, 'model.kvHeads': 8, 'model.headDim': 128, 'model.wBytes': 2, 'model.kvBytes': 2,
+      'hw.hwsel': 'a100', 'hw.count': 1, 'hw.tp': 1, 'hw.vram': 79.4, 'hw.bw': 2039, 'hw.flops': 312, 'hw.link': 0,
+      'hw.mfuPre': 0.45, 'hw.mfuDec': 0.12, 'hw.bwEff': 0.8,
+      'load.inLen': 512, 'load.outLen': 256, 'load.conc': 16, 'load.maxLen': 8192, 'load.actBase': 1.0 }) },
+    llama70b: { label: 'Llama-3-70B BF16 × 8×H100（TP=8）', v: Object.assign({}, BASE, {
+      'model.params': 70.6, 'model.active': 70.6, 'model.layers': 80, 'model.hidden': 8192,
+      'model.heads': 64, 'model.kvHeads': 8, 'model.headDim': 128, 'model.wBytes': 2, 'model.kvBytes': 2,
+      'hw.hwsel': 'h100', 'hw.count': 8, 'hw.tp': 8, 'hw.vram': 79.4, 'hw.bw': 3350, 'hw.flops': 989, 'hw.link': 900,
+      'hw.mfuPre': 0.45, 'hw.mfuDec': 0.12, 'hw.bwEff': 0.85,
+      'load.inLen': 1024, 'load.outLen': 256, 'load.conc': 64, 'load.maxLen': 8192, 'load.actBase': 1.6 }) },
+    dsv3: { label: 'DeepSeek-V3 671B/37B-A MoE FP8 × 8×H200（TP=8, MLA）', v: Object.assign({}, BASE, {
+      'model.params': 671, 'model.active': 37, 'model.layers': 61, 'model.hidden': 7168,
+      'model.heads': 128, 'model.kvHeads': 128, 'model.headDim': 128, 'model.attn': 'mla',
+      'model.mlaLatent': 512, 'model.mlaRope': 64, 'model.wBytes': 1, 'model.kvBytes': 2,
+      'hw.hwsel': 'h200', 'hw.count': 8, 'hw.tp': 8, 'hw.vram': 140.4, 'hw.bw': 4800, 'hw.flops': 1979, 'hw.link': 900,
+      'hw.mfuPre': 0.35, 'hw.mfuDec': 0.12, 'hw.bwEff': 0.85,
+      'load.inLen': 4096, 'load.outLen': 512, 'load.conc': 64, 'load.maxLen': 32768, 'load.actBase': 2.0 }) },
+    qwen30a3b: { label: 'Qwen3-30B-A3B（3.3B 激活）FP8 × 1×H100', v: Object.assign({}, BASE, {
+      'model.params': 30.5, 'model.active': 3.3, 'model.layers': 48, 'model.hidden': 2048,
+      'model.heads': 32, 'model.kvHeads': 4, 'model.headDim': 128, 'model.wBytes': 1, 'model.kvBytes': 1,
+      'hw.hwsel': 'h100', 'hw.count': 1, 'hw.tp': 1, 'hw.vram': 79.4, 'hw.bw': 3350, 'hw.flops': 1979, 'hw.link': 0,
+      'hw.mfuPre': 0.35, 'hw.mfuDec': 0.1, 'hw.bwEff': 0.85,
+      'load.inLen': 1024, 'load.outLen': 256, 'load.conc': 32, 'load.maxLen': 32768, 'load.actBase': 1.2 }) }
+  };
+
+  // 开源模型库。结构参数取自公开 config（2026 旗舰已逐条对照 HF config 核验）；
+  // 参数量为总量（含 embedding），MoE 另给激活量；GLM-5.x 的总参按 config 逐层累加估算（±3%）。
+  const MODELS = [
+    // —— 2026 旗舰（超长上下文 / 稀疏注意力 / MoE） ——
+    { id:'dsv41-flash-1017', family:'2026 旗舰', label:'DeepSeek-V4.1-Flash-1017（552B/16B·共享KV）', params:552, active:16, activePre:8, layers:40, hidden:5120, heads:64, kvHeads:1, headDim:512, attn:'mla', mlaLatent:512, mlaRope:64, kvOverride:890, attnWin:8192, pref:1, maxLen:1048576 },
+    { id:'dsv41-flash', family:'2026 旗舰', label:'DeepSeek-V4.1-Flash（552B/16B·同架构）', params:552, active:16, activePre:8, layers:40, hidden:5120, heads:64, kvHeads:1, headDim:512, attn:'mla', mlaLatent:512, mlaRope:64, kvOverride:890, attnWin:8192, pref:1, maxLen:1048576 },
+    { id:'glm-5.3', family:'2026 旗舰', label:'GLM-5.3（≈743B/39B·DSA 256 experts）', params:743, active:39, layers:78, hidden:6144, heads:64, kvHeads:64, headDim:192, attn:'mla', mlaLatent:512, mlaRope:64, attnWin:2048, pref:1, maxLen:1048576 },
+    { id:'glm-5.2', family:'2026 旗舰', label:'GLM-5.2（≈743B/39B·同架构）', params:743, active:39, layers:78, hidden:6144, heads:64, kvHeads:64, headDim:192, attn:'mla', mlaLatent:512, mlaRope:64, attnWin:2048, pref:1, maxLen:1048576 },
+    { id:'glm-5.3-flash', family:'2026 旗舰', label:'GLM-5.3-Flash（≈313B/16B·KDA+DSA）', params:313, active:16, layers:45, hidden:4096, heads:64, kvHeads:64, headDim:256, attn:'mla', mlaLatent:512, mlaRope:64, kvOverride:5632, attnWin:2048, pref:1, maxLen:1048576 },
+    { id:'minimax-m31-flash', family:'2026 旗舰', label:'MiniMax-M3.1-Flash（428B/23B·MSA）', params:428, active:23, layers:60, hidden:6144, heads:64, kvHeads:4, headDim:128, attn:'gqa', attnWin:2048, pref:1, maxLen:1048576 },
+    { id:'kimi-k3', family:'2026 旗舰', label:'Kimi-K3（2.8T/104B·KDA+24层MLA）', params:2800, active:104, layers:93, hidden:7168, heads:96, kvHeads:96, headDim:128, attn:'mla', mlaLatent:512, mlaRope:64, kvOverride:13824, pref:0.53, maxLen:1048576 },
+
+    // —— 本机实验机（压测校准用） ——
+    { id:'qwen3.8-27b', family:'本机实验', label:'Qwen3.8-27B（实验模型）', params:30.9, active:30.9, layers:64, hidden:6144, heads:24, kvHeads:4, headDim:256, attn:'gqa', maxLen:131072 },
+
+    // —— 稠密 · 小（≤15B）：单卡 / 双卡，decode 带宽受限 ——
+    { id:'qwen3-14b',  family:'稠密 · 小（≤15B）', label:'Qwen3-14B', params:14.8, active:14.8, layers:40, hidden:5120, heads:40, kvHeads:8, headDim:128, attn:'gqa', maxLen:40960 },
+    { id:'qwen3-8b',   family:'稠密 · 小（≤15B）', label:'Qwen3-8B',  params:8.2,  active:8.2,  layers:36, hidden:4096, heads:32, kvHeads:8, headDim:128, attn:'gqa', maxLen:40960 },
+    { id:'qwen3-4b',   family:'稠密 · 小（≤15B）', label:'Qwen3-4B',  params:4.0,  active:4.0,  layers:36, hidden:2560, heads:32, kvHeads:8, headDim:128, attn:'gqa', maxLen:40960 },
+    { id:'qwen3-1.7b', family:'稠密 · 小（≤15B）', label:'Qwen3-1.7B', params:1.7, active:1.7,  layers:28, hidden:2048, heads:16, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'qwen2.5-7b', family:'稠密 · 小（≤15B）', label:'Qwen2.5-7B', params:7.6,  active:7.6,  layers:28, hidden:3584, heads:28, kvHeads:4, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'llama-3.1-8b', family:'稠密 · 小（≤15B）', label:'Llama-3.1-8B', params:8.03, active:8.03, layers:32, hidden:4096, heads:32, kvHeads:8, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'llama-3.2-3b', family:'稠密 · 小（≤15B）', label:'Llama-3.2-3B', params:3.21, active:3.21, layers:28, hidden:3072, heads:24, kvHeads:8, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'mistral-7b', family:'稠密 · 小（≤15B）', label:'Mistral-7B-v0.3', params:7.2, active:7.2, layers:32, hidden:4096, heads:32, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'gemma-3-12b', family:'稠密 · 小（≤15B）', label:'Gemma-3-12B（滑窗 1K）', params:12.2, active:12.2, layers:48, hidden:3840, heads:16, kvHeads:8, headDim:256, attn:'gqa', window:1024, maxLen:131072 },
+    { id:'glm-4-9b', family:'稠密 · 小（≤15B）', label:'GLM-4-9B', params:9.4, active:9.4, layers:40, hidden:4096, heads:32, kvHeads:2, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'phi-4', family:'稠密 · 小（≤15B）', label:'Phi-4（14B）', params:14.7, active:14.7, layers:40, hidden:5120, heads:40, kvHeads:10, headDim:128, attn:'gqa', maxLen:16384 },
+
+    // —— 稠密 · 大（27~72B）：一台多卡，TP 通信开始重要 ——
+    { id:'qwen3-32b',  family:'稠密 · 大（27~72B）', label:'Qwen3-32B',  params:32.8, active:32.8, layers:64, hidden:5120, heads:64, kvHeads:8, headDim:128, attn:'gqa', maxLen:40960 },
+    { id:'qwen2.5-32b', family:'稠密 · 大（27~72B）', label:'Qwen2.5-32B', params:32.5, active:32.5, layers:64, hidden:5120, heads:40, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'qwen2.5-72b', family:'稠密 · 大（27~72B）', label:'Qwen2.5-72B', params:72.7, active:72.7, layers:80, hidden:8192, heads:64, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'llama-3.3-70b', family:'稠密 · 大（27~72B）', label:'Llama-3.3-70B', params:70.6, active:70.6, layers:80, hidden:8192, heads:64, kvHeads:8, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'gemma-3-27b', family:'稠密 · 大（27~72B）', label:'Gemma-3-27B（滑窗 1K）', params:27.4, active:27.4, layers:62, hidden:5376, heads:32, kvHeads:16, headDim:256, attn:'gqa', window:1024, maxLen:131072 },
+    { id:'yi-34b', family:'稠密 · 大（27~72B）', label:'Yi-34B', params:34.4, active:34.4, layers:60, hidden:7168, heads:56, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+
+    // —— MoE · 中型（30~150B）：单机多卡，看重激活参数 ——
+    { id:'qwen3-30b-a3b', family:'MoE · 中型（30~150B）', label:'Qwen3-30B-A3B（30.5B/3.3B）', params:30.5, active:3.3, layers:48, hidden:2048, heads:32, kvHeads:4, headDim:128, attn:'gqa', maxLen:40960 },
+    { id:'mixtral-8x7b', family:'MoE · 中型（30~150B）', label:'Mixtral-8x7B（46.7B/12.9B）', params:46.7, active:12.9, layers:32, hidden:4096, heads:32, kvHeads:8, headDim:128, attn:'gqa', maxLen:32768 },
+    { id:'glm-4.5-air', family:'MoE · 中型（30~150B）', label:'GLM-4.5-Air（106B/12B）', params:106, active:12, layers:46, hidden:4096, heads:96, kvHeads:8, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'mixtral-8x22b', family:'MoE · 中型（30~150B）', label:'Mixtral-8x22B（141B/39B）', params:141, active:39, layers:56, hidden:6144, heads:48, kvHeads:8, headDim:128, attn:'gqa', maxLen:65536 },
+
+    // —— MoE · 巨型（>200B）：多机，EP/TP/PP 组合 ——
+    { id:'deepseek-v2', family:'MoE · 巨型（>200B）', label:'DeepSeek-V2（236B/21B·MLA）', params:236, active:21, layers:60, hidden:5120, heads:128, kvHeads:128, headDim:128, attn:'mla', mlaLatent:512, mlaRope:64, maxLen:131072 },
+    { id:'qwen3-235b-a22b', family:'MoE · 巨型（>200B）', label:'Qwen3-235B-A22B（235B/22B）', params:235, active:22, layers:94, hidden:4096, heads:64, kvHeads:4, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'glm-4.5', family:'MoE · 巨型（>200B）', label:'GLM-4.5（355B/32B）', params:355, active:32, layers:92, hidden:5120, heads:96, kvHeads:8, headDim:128, attn:'gqa', maxLen:131072 },
+    { id:'deepseek-v3', family:'MoE · 巨型（>200B）', label:'DeepSeek-V3 / R1（671B/37B·MLA）', params:671, active:37, layers:61, hidden:7168, heads:128, kvHeads:128, headDim:128, attn:'mla', mlaLatent:512, mlaRope:64, maxLen:131072 },
+    { id:'kimi-k2', family:'MoE · 巨型（>200B）', label:'Kimi-K2（1T/32B·MLA）', params:1000, active:32, layers:61, hidden:7168, heads:64, kvHeads:64, headDim:128, attn:'mla', mlaLatent:512, mlaRope:64, maxLen:131072 }
+  ];
+
+  // 常见业务形态：输入 / 输出 / 需要预留的 max-model-len
+  const WORKLOADS = [
+    { id:'bench',  label:'压测基线 512 / 128',        inLen:512,  outLen:128,  maxLen:8192 },
+    { id:'chat',   label:'通用对话 1K / 256',         inLen:1024, outLen:256,  maxLen:4096 },
+    { id:'qa',     label:'短问答 256 / 256',          inLen:256,  outLen:256,  maxLen:2048 },
+    { id:'code',   label:'代码补全 2K / 128',         inLen:2048, outLen:128,  maxLen:8192 },
+    { id:'agent',  label:'Agent 多轮 4K / 512',       inLen:4096, outLen:512,  maxLen:8192 },
+    { id:'rag',    label:'RAG 长文 8K / 512',         inLen:8192, outLen:512,  maxLen:16384 },
+    { id:'long',   label:'长文摘要 32K / 1K',         inLen:32768,outLen:1024, maxLen:65536 },
+    { id:'doc128', label:'超长文档 128K / 1K',        inLen:131072,outLen:1024, maxLen:135168 },
+    { id:'doc512', label:'超长上下文 512K / 2K',      inLen:524288,outLen:2048, maxLen:530432 },
+    { id:'doc1m',  label:'极限上下文 1M / 2K',        inLen:1000000,outLen:2048, maxLen:1048576 },
+    { id:'reason', label:'深度推理 1K / 2K',          inLen:1024, outLen:2048, maxLen:8192 }
+  ];
+
+  // 投机方案：γ 草稿长度、α 接受率（vLLM /metrics 口径）、c 草稿开销、E 实测有效接受数（0=按公式）
+  const SPEC_METHODS = [
+    { id:'off',    label:'关闭（基线）',                 on:0, gamma:4, alpha:0.6,  cost:0.02, draft:0,   E:0 },
+    { id:'mtp',    label:'MTP 自投机（Qwen/DeepSeek 自带）', on:1, gamma:3, alpha:0.45, cost:0.02, draft:0,   E:2.0 },
+    { id:'medusa', label:'Medusa 多头',                  on:1, gamma:4, alpha:0.55, cost:0.03, draft:1.0, E:2.2 },
+    { id:'eagle3', label:'EAGLE-3（树式草稿）',           on:1, gamma:5, alpha:0.72, cost:0.05, draft:1.2, E:3.2 },
+    { id:'dflash2',label:'DFlash2（外挂草稿, K=8）',       on:1, gamma:8, alpha:0.39, cost:0.03, draft:3.7, E:3.3 },
+    { id:'dspark', label:'DSpark（外挂草稿, K=8）',        on:1, gamma:8, alpha:0.29, cost:0.03, draft:3.8, E:2.6 },
+    { id:'ngram',  label:'NGRAM 提示词匹配',              on:1, gamma:4, alpha:0.07, cost:0.01, draft:0,   E:0.85 },
+    { id:'suffix', label:'SUFFIX 后缀树',                 on:1, gamma:4, alpha:0.70, cost:0.01, draft:0,   E:3.0 }
+  ];
+
+  function group(flat) {
+    const o = { model: {}, hw: {}, load: {}, spec: {}, pd: {} };
+    for (const k in flat) {
+      const i = k.indexOf('.'); if (i < 0) continue;
+      const a = k.slice(0, i), b = k.slice(i + 1);
+      if (o[a]) o[a][b] = flat[k];
+    }
+    return o;
+  }
+
+  function kvPerToken(m) {
+    if (m.attn === 'mla') return m.layers * (m.mlaLatent + m.mlaRope) * m.kvBytes;
+    return 2 * m.layers * m.kvHeads * m.headDim * m.kvBytes;
+  }
+
+  const kvFmt = b => b >= 1024 ? (b / 1024).toFixed(b / 1024 >= 100 ? 0 : 1) + ' KiB' : Math.round(b) + ' B';
+
+  function compute(input) {
+    const c = input.model ? input : group(input);
+    const num = (v, d) => (v === '' || v === null || v === undefined || !isFinite(+v)) ? d : +v;
+    const m = Object.assign({ attn: 'gqa' }, c.model);
+    const h = Object.assign({}, c.hw);
+    const l = Object.assign({}, c.load);
+    const s = Object.assign({ on: 0 }, c.spec);
+    const DM = { params: 7, active: 7, layers: 32, hidden: 4096, heads: 32, kvHeads: 8, headDim: 128, wBytes: 2, kvBytes: 2, window: 0, mlaLatent: 512, mlaRope: 64 };
+    const DH = { count: 1, tp: 1, pp: 1, vram: 80, bw: 2000, flops: 300, link: 0, lat: 8, util: 0.9, mfuPre: 0.4, mfuDec: 0.1, bwEff: 0.8, overlap: 0.3 };
+    const DL = { inLen: 512, outLen: 128, conc: 1, maxLen: 8192, batchTokens: 2048, prefixHit: 0, sloTTFT: 500, sloTPOT: 50, qps: 0, overhead: 8, stepMs: 1.5, actBase: 0.6, actCoef: 6, queue: 0.3 };
+    for (const k in DM) m[k] = num(m[k], DM[k]);
+    for (const k in DH) h[k] = num(h[k], DH[k]);
+    for (const k in DL) l[k] = num(l[k], DL[k]);
+    s.gamma = num(s.gamma, 3); s.alpha = num(s.alpha, 0.5); s.cost = num(s.cost, 0.02); s.draft = num(s.draft, 0); s.E = num(s.E, 0);
+
+    m.params = Math.max(0.01, m.params); m.active = Math.max(0.01, m.active);
+    m.wBytes = Math.max(0.05, m.wBytes); m.kvBytes = Math.max(0.05, m.kvBytes);
+    h.count = Math.max(1, Math.round(h.count));
+    h.tp = Math.max(1, Math.round(h.tp));
+    h.pp = Math.max(1, Math.round(h.pp));
+    h.bw = Math.max(1, h.bw); h.flops = Math.max(1, h.flops);
+    l.conc = Math.max(1, Math.round(l.conc));
+    l.inLen = Math.max(0, l.inLen);
+    l.outLen = Math.max(1, l.outLen);
+    l.maxLen = Math.max(l.inLen + 1, l.maxLen);
+    l.batchTokens = Math.max(1, l.batchTokens);
+    l.prefixHit = Math.min(1, Math.max(0, l.prefixHit));
+
+    const par = Math.max(1, (h.tp || 1) * (h.pp || 1));
+    const dpAvail = Math.max(1, Math.floor(h.count / par));      // 能开多少个副本
+    const dpUsed = Math.max(1, Math.min(dpAvail, l.conc));       // 实际有请求的副本数
+    const seqs = Math.max(1, Math.ceil(l.conc / dpUsed));        // 每个副本的并发
+    const W = m.params * GB * m.wBytes;
+    // KV/token：非标准结构（CSA2 共享 KV / KDA 混合线性注意力）可用官方每 token 字节数覆盖
+    const kbt = m.kvOverride > 0 ? m.kvOverride : kvPerToken(m);
+    // 预填充与解码激活参数可能不同（DeepSeek-V4 的 CED 架构）
+    const actPre = m.activePre > 0 ? m.activePre : m.active;
+    const win = m.window > 0 ? m.window : Infinity;
+    const lim = x => Math.min(x, win);
+    const ctxCap = lim(l.maxLen);
+    // 单条请求的上下文不能超过 max-model-len，否则按上限截断（并在建议里提示）
+    const ctxPeak = Math.min(lim(l.inLen + l.outLen), ctxCap);
+    const ctxAvg = Math.min(lim(l.inLen + l.outLen / 2), ctxCap);
+
+    const budget = h.vram * GIB * h.util;
+    const act = l.actBase * GB + l.actCoef * l.batchTokens * m.hidden * 2 / (h.tp || 1);
+    const draft = s.on ? s.draft * GB / (h.tp || 1) : 0;
+    const mem = { w: W / par, kv: seqs * ctxPeak * kbt / par, act, draft };
+    mem.total = mem.w + mem.kv + mem.act + mem.draft;
+    const free = budget - mem.w - mem.act - mem.draft;
+    // 单副本能装多少路 → 整机（全部副本）能装多少路
+    const concPer = free > 0 ? Math.floor(free / (ctxPeak * kbt / par)) : 0;
+    const maxConcLen = (free > 0 ? Math.floor(free / (ctxCap * kbt / par)) : 0) * dpAvail;
+    const maxConcNow = concPer * dpAvail;
+    const maxConc = maxConcNow;
+    const kvPoolTok = (free > 0 ? Math.floor(free * par / kbt) : 0) * dpAvail;  // 全机 KV 池 token 数
+
+    // 预填充
+    const preTok = Math.max(1, l.inLen * (1 - l.prefixHit));
+    const sPre = m.attnWin > 0 ? Math.min(preTok, m.attnWin) : preTok;
+    const flopsPre = 2 * actPre * GB * preTok + 2 * m.layers * sPre * sPre * (m.heads * m.headDim);
+    const tPre = flopsPre / (par * h.flops * 1e12 * h.mfuPre);
+    const ttft = tPre * 1000 + l.overhead;
+    const prefillCap = par * h.flops * 1e12 * h.mfuPre / (2 * actPre * GB);
+
+    // 解码（以下都是「单个副本」的量；全机吞吐 = 并发 × 单副本每步产出）
+    const TPS = s.on ? 1 + s.gamma : 1;
+    // MFU 随每步 token 数缓慢上升（GEMM 形状变好），指数 0.35 由本机 C=1/16/32 拟合
+    const mfuAt = k => Math.min(h.mfuDec * 2.5, Math.max(h.mfuDec * 0.5,
+      h.mfuDec * Math.pow(Math.max(1, k * TPS) / 32, 0.35)));
+    const sDec = m.attnWin > 0 ? Math.min(ctxAvg, m.attnWin) : ctxAvg;
+    const attnFlops = 4 * m.layers * sDec * (m.heads * m.headDim) * seqs * TPS;
+    const flopsDec = 2 * m.active * GB * seqs * TPS + attnFlops;
+    const kvRead = seqs * TPS * ctxAvg * kbt;
+    const bytesDec = W + kvRead;
+    const tBw = bytesDec / (par * h.bw * GB * h.bwEff);
+    const tFl = flopsDec / (par * h.flops * 1e12 * mfuAt(seqs));
+    const commBytes = 2 * m.layers * seqs * TPS * m.hidden * 2 * ((h.tp || 1) - 1) / (h.tp || 1);
+    const tComm = (h.tp || 1) > 1
+      ? commBytes / (Math.max(1, h.link) * GB * 0.7) + 2 * m.layers * h.lat * 1e-6
+      : 0;
+    const E = s.on
+      ? (s.E > 0 ? s.E : (s.alpha >= 0.999 ? s.gamma + 1 : (1 - Math.pow(s.alpha, s.gamma + 1)) / (1 - s.alpha)))
+      : 1;
+    const specCost = s.on ? 1 + s.cost * s.gamma : 1;
+    const stepCore = Math.max(tBw, tFl);
+    const step = (stepCore + tComm * (1 - h.overlap) + l.stepMs / 1000) * specCost;
+    const tpot = step / E * 1000;
+    const decTps = l.conc * E / step;
+
+    // 端到端（连续批处理稳态）：所有并发请求都在飞，吞吐 = 并发 × 每步产出 / 每步时间
+    const lat = ttft + Math.max(0, l.outLen - 1) * tpot;
+    const reqRate = l.conc / (lat / 1000);
+    const outTps = reqRate * l.outLen;
+    const prefillBound = reqRate * preTok > prefillCap * dpUsed;
+
+    // 饱和批次 B*：带宽时间 = 算力时间（单副本口径）
+    const q = ctxAvg * kbt;
+    const denom = 2 * m.active * GB * par * h.bw * GB * h.bwEff - q * par * h.flops * 1e12 * h.mfuDec;
+    const bstar = denom > 0 ? W * par * h.flops * 1e12 * h.mfuDec / denom : Infinity;
+
+    // SLO
+    const ttftBatch = ttft * (1 + (seqs - 1) * l.queue);
+    const scan = [];
+    const cap = Math.min(Math.max(1, maxConc), 512);
+    // 曲线至少画到 16 路，超出显存的部分用虚线表示（便于看出趋势），但不参与 SLO 判定
+    const capFull = Math.min(512, Math.max(cap, 16));
+    for (let k = 1; k <= capFull; k++) {
+      const d = decodeAt(k);
+      scan.push({ c: k, tps: d.tps, tpot: d.tpot, ttft: ttftAt(k), ok: k <= cap });
+    }
+    let ok = ttftBatch <= l.sloTTFT && tpot <= l.sloTPOT;
+    let best = null;
+    for (const p of scan) if (p.ok && p.ttft <= l.sloTTFT && p.tpot <= l.sloTPOT) best = p;
+    const goodput = best ? best.tps : 0;
+
+    function decodeAt(k) {
+      const dpU = Math.max(1, Math.min(dpAvail, k));
+      const sR = Math.max(1, Math.ceil(k / dpU));                // 每副本并发
+      const f = 2 * m.active * GB * sR * TPS + 4 * m.layers * ctxAvg * (m.heads * m.headDim) * sR * TPS;
+      const b = W + sR * TPS * ctxAvg * kbt;
+      const tb = b / (par * h.bw * GB * h.bwEff);
+      const tf = f / (par * h.flops * 1e12 * mfuAt(sR));
+      const st = (Math.max(tb, tf) + commAt(sR) * (1 - h.overlap) + l.stepMs / 1000) * specCost;
+      return { tps: k * E / st, tpot: st / E * 1000 };
+    }
+    function commAt(k) {
+      if ((h.tp || 1) <= 1) return 0;
+      const bytes = 2 * m.layers * k * TPS * m.hidden * 2 * ((h.tp || 1) - 1) / (h.tp || 1);
+      return bytes / (Math.max(1, h.link) * GB * 0.7) + 2 * m.layers * h.lat * 1e-6;
+    }
+    function ttftAt(k) {
+      const dpU = Math.max(1, Math.min(dpAvail, k));
+      const sR = Math.max(1, Math.ceil(k / dpU));
+      return ttft * (1 + (sR - 1) * l.queue);
+    }
+
+    // 墙
+    const ridge = h.flops * 1e12 / (h.bw * GB);
+    const effRidge = h.flops * 1e12 * h.mfuDec / (h.bw * GB * h.bwEff);
+    const stepAll = stepCore + tComm * (1 - h.overlap) + l.stepMs / 1000;
+    const bwTot = par * h.bw * GB * h.bwEff;
+    const mfuNow = mfuAt(seqs);
+    const walls = [
+      { k: 'HBM 带宽', v: tBw / stepAll, ms: tBw * 1000,
+        d: `每步搬 ${(bytesDec / GB).toFixed(1)} GB（权重 ${(W / GB).toFixed(0)} + KV ${(kvRead / GB).toFixed(2)}）÷ 有效带宽 ${(bwTot / 1e12).toFixed(1)} TB/s = ${(tBw * 1000).toFixed(1)} ms` },
+      { k: '算力', v: tFl / stepAll, ms: tFl * 1000,
+        d: `每步 2·P_act·并发 = 2×${m.active}B×${seqs} = ${(flopsDec / 1e12).toFixed(2)} TFLOP ÷ (${h.count} 卡 × ${h.flops} × MFU ${mfuNow.toFixed(3)}) = ${(tFl * 1000).toFixed(1)} ms` },
+      { k: '卡间通信', v: (tComm * (1 - h.overlap)) / stepAll, ms: tComm * (1 - h.overlap) * 1000,
+        d: `TP=${h.tp}：每步 ${2 * m.layers} 次 all-reduce，固定启停 ${(2 * m.layers * h.lat / 1000).toFixed(2)} ms + 传输 ${(commBytes / 1e6).toFixed(1)} MB ÷ ${(h.link * 0.7).toFixed(0)} GB/s = ${(tComm * 1000).toFixed(2)} ms，再 ×(1−重叠 ${h.overlap}) = ${(tComm * (1 - h.overlap) * 1000).toFixed(2)} ms` },
+      { k: '显存容量', v: mem.total / budget,
+        d: `权重 ${(mem.w / GIB).toFixed(1)} + KV ${(mem.kv / GIB).toFixed(2)}（${l.conc} 路 × ${Math.round(ctxPeak)} tok × ${kvFmt(kbt)} ÷ ${par} 卡）+ 运行时 ${(mem.act / GIB).toFixed(1)} = ${(mem.total / GIB).toFixed(1)} / ${(budget / GIB).toFixed(1)} GiB` }
+    ].sort((a, b) => b.v - a.v);
+
+    const oom = mem.total > budget;
+    let tag, cls, text, sub;
+    if (oom) {
+      tag = '显存墙'; cls = 'bad';
+      text = `当前 ${l.conc} 路并发装不下：需 ${(mem.total / GIB).toFixed(1)} GiB，预算仅 ${(budget / GIB).toFixed(1)} GiB/卡。`;
+      sub = `按当前 ${ctxPeak} token 上下文最多 ${maxConcNow} 路；若每路都占满 ${l.maxLen}，则只有 ${maxConcLen} 路。可降精度、缩上下文或加卡。`;
+    } else if (walls[0].v < 0.45) {
+      tag = '均未饱和'; cls = 'ok';
+      text = `各资源利用率都不高（最高 ${walls[0].k} ${(walls[0].v * 100).toFixed(0)}%），瓶颈在排队/调度或延迟本身。`;
+      sub = `Decode 延迟 ${tpot.toFixed(2)} ms/token，算力利用率 ${(tFl / stepAll * 100).toFixed(0)}%，带宽 ${(tBw / stepAll * 100).toFixed(0)}%。`;
+    } else {
+      tag = walls[0].k + '墙'; cls = walls[0].k === '算力' ? 'warn' : (walls[0].k === 'HBM 带宽' ? 'acc' : 'warn');
+      text = `Decode 每步 ${(stepAll * 1000).toFixed(1)} ms 中，${walls[0].k} 占 ${(walls[0].v * 100).toFixed(0)}%：${walls[0].d}。`;
+      sub = `算术强度 ${(flopsDec / bytesDec).toFixed(1)} FLOP/B vs 有效平衡点 ${effRidge.toFixed(0)}（已计 MFU ${h.mfuDec}、带宽效率 ${h.bwEff}）→ ${flopsDec / bytesDec < effRidge ? '带宽受限' : '算力受限'}。`;
+    }
+
+    const adv = [];
+    if (oom) {
+      // 只给建议，不自动改：算一个能装下的 TP×PP
+      const capS = h.vram * GIB * h.util * 0.85;
+      let tps = 1; while (tps < 16 && W / tps > capS) tps *= 2;
+      const pps = Math.max(1, Math.ceil(W / (capS * tps)));
+      const needCards = tps * pps;
+      adv.push(`显存超限：权重 ${(mem.w / GIB).toFixed(1)} + KV ${(mem.kv / GIB).toFixed(1)} + 运行时 ${(mem.act / GIB).toFixed(1)} GiB/卡。`
+        + `该模型在这张卡上至少要 ${needCards} 张（建议 TP=${tps}${pps > 1 ? '×PP=' + pps : ''}，当前 ${h.count} 卡 / TP${h.tp}${h.pp > 1 ? '×PP' + h.pp : ''}）；`
+        + `或降精度、缩上下文。`);
+    }
+    if (walls[0].k === 'HBM 带宽' && !oom) adv.push(`带宽墙：加并发到 B*≈${isFinite(bstar) ? Math.round(bstar) : '∞（该配置不会转为算力受限）'} 路之前，吞吐近似线性增长；再往上必须降字节（${m.wBytes > 1 ? '权重 FP8/INT4、' : ''}${m.kvBytes > 1 ? 'KV 量化、' : ''}换高带宽卡）。`);
+    if (walls[0].k === '算力' && !oom) adv.push(`算力墙：Decode 已转为算力受限，扩 batch 只增延迟不增吞吐；${m.wBytes > 1 ? '上 FP8/INT4 权重；' : '权重已量化，继续降精度收益有限；'}提高 MFU（融合 kernel / CUDA Graph / 更大 GEMM）或加卡 TP。`);
+    if (walls[0].k === '卡间通信' && !oom) adv.push(`通信墙：TP=${h.tp} 每步 ${2 * m.layers} 次 all-reduce，走 PCIe/跨 NUMA 时代价很高；可改 DP 多副本（各卡独立）或换 NVLink 机型。`);
+    if (mem.kv > mem.w) adv.push(`KV 已超过权重（${(mem.kv / GIB).toFixed(1)} vs ${(mem.w / GIB).toFixed(1)} GiB/卡）：加并发或加长度会先撞显存，优先 KV 量化 / 滑窗 / prefix cache。`);
+    if (!ok) adv.push(`当前 ${l.conc} 路不满足 SLO（TTFT≤${l.sloTTFT}ms, TPOT≤${l.sloTPOT}ms）：SLO 内最多 ${best ? best.c : 0} 路，goodput ${goodput.toFixed(0)} tok/s。`);
+    if (prefillBound) adv.push(`输入侧已饱和：每请求 ${preTok} token 的 prefill 容量只有 ${(prefillCap / 1e3).toFixed(0)}k tok/s，需要 chunked prefill 或 PD 分离部署。`);
+    if (l.inLen + l.outLen > l.maxLen) adv.push(`请求长度 ${l.inLen}+${l.outLen} 已超过 max-model-len ${l.maxLen}：KV 按上限截断计算，实际会被框架拒绝或截断输出。要么调大上下文（吃显存），要么缩短输入。`);
+    if (dpAvail > 1) adv.push(`拓扑：${h.count} 卡按 TP×PP=${par} 切成 ${dpAvail} 个副本（当前 ${dpUsed} 个在跑）。权重/卡只由 TP×PP 决定，加卡是加副本，不会让单卡权重变小；吞吐与最大并发随副本数线性增长。`);
+    if (s.on) adv.push(`投机：每步接受 ${E.toFixed(2)} token（${s.E > 0 ? '实测/预设' : '公式'}）；并发越高收益越小（验证 token 挤占算力），若实测加速更高就调大「有效 E」。`);
+    if ((h.count % par) !== 0) adv.push(`拓扑提示：${h.count} 卡无法被 TP×PP=${par} 整除，实际会有卡闲置。`);
+    if (h.pp > 1) adv.push(`PP=${h.pp} 会引入流水线气泡，本模型未计入，实际 TPOT 会比预测高 ${(100 / h.pp).toFixed(0)}% 左右。`);
+
+    const steps = [
+      ['权重显存', `P·b_w = ${m.params}×10⁹ × ${m.wBytes} B`, `${(W / GB).toFixed(1)} GB`],
+      ['KV / token', m.kvOverride > 0 ? `官方给定（共享 KV / 线性注意力）：${m.kvOverride} B` : (m.attn === 'mla' ? `L·(d_c+d_r)·b_kv = ${m.layers}×(${m.mlaLatent}+${m.mlaRope})×${m.kvBytes}` : `2·L·n_kv·d_h·b_kv = 2×${m.layers}×${m.kvHeads}×${m.headDim}×${m.kvBytes}`), `${kvFmt(kbt)}`],
+      ['单卡显存', `W/(TP·PP) + 并发·ctx·KV/tok /(TP·PP) + 运行时`, `${(mem.total / GIB).toFixed(2)} GiB`],
+      ['KV 池容量', `(预算 − 权重 − 运行时) × 卡数 ÷ KV/tok`, `${kvPoolTok.toLocaleString('en-US')} tok`],
+      ['最大并发', `容量 ÷ (当前 ctx × KV/tok)；满 ${l.maxLen} 时 ${maxConcLen} 路`, `${maxConcNow} 路 @ ${ctxPeak}`],
+      ['Prefill FLOPs', `2·P_act_pre·S_in + 2·L·S_in²·(n_h·d_h)`, `${(flopsPre / 1e12).toFixed(2)} TFLOP`],
+      ['TTFT', `FLOPs / (N·FLOPS·MFU) + 固定开销`, `${ttft.toFixed(1)} ms`],
+      ['Decode 字节/步', `W + 并发·ctx·KV/tok`, `${(bytesDec / GB).toFixed(2)} GB`],
+      ['Decode FLOPs/步', `2·P_act·并发 + 4·L·ctx·(n_h·d_h)·并发`, `${(flopsDec / 1e12).toFixed(2)} TFLOP`],
+      ['带宽时间', `字节 / (N·BW·η_bw)`, `${(tBw * 1000).toFixed(2)} ms`],
+      ['算力时间', `FLOPs / (N·FLOPS·MFU_dec)`, `${(tFl * 1000).toFixed(2)} ms`],
+      ['通信时间', `2·L·并发·d·2B·(TP−1)/TP ÷ 链路 + 2L·延迟`, `${(tComm * 1000).toFixed(2)} ms`],
+      ['TPOT', `max(带宽, 算力) + 通信·(1−重叠) + 固定，再 ÷ E`, `${tpot.toFixed(2)} ms`],
+      ['投机期望接受', s.on ? (s.E > 0 ? '实测/预设 E（覆盖公式）' : `E=(1−α^(γ+1))/(1−α) = (1−${s.alpha}^${s.gamma + 1})/(1−${s.alpha})`) : '未启用', `${E.toFixed(2)} tok/步`],
+      ['系统吞吐', `并发 × E / 每步时间`, `${decTps.toFixed(0)} tok/s`],
+      ['端到端吞吐', `并发 ÷ (TTFT + 输出×TPOT) × 输出`, `${outTps.toFixed(0)} tok/s`],
+      ['机器平衡点', `FLOPS / BW`, `${ridge.toFixed(0)} FLOP/B`]
+    ];
+
+    return {
+      par, dp: dpAvail, dpUsed, kvTok: kbt, weightsGB: W / GB, ctx: { peak: ctxPeak, avg: ctxAvg, cap: ctxCap },
+      mem, budget, free, maxConc, maxConcLen, maxConcNow, kvPoolTok, oom,
+      pre: { flops: flopsPre, ms: tPre * 1000, ai: flopsPre / (W + preTok * kbt), tflops: flopsPre / (tPre * 1e12), cap: prefillCap },
+      dec: { stepMs: step * 1000, bwMs: tBw * 1000, flMs: tFl * 1000, commMs: tComm * 1000, tpot, E, tps: decTps, bytes: bytesDec, flops: flopsDec, ai: flopsDec / bytesDec, tflops: flopsDec / (step * 1e12) },
+      e2e: { ttft, ttftBatch, lat, reqRate, outTps, prefillBound },
+      slo: { ok, best: best ? best.c : 0, maxTps: goodput },
+      walls, verdict: { tag, cls, text, sub }, adv, steps, curve: scan, peak: h.flops,
+      tune: { ridge, bstar, utilBw: tBw / stepAll, utilFl: tFl / stepAll, utilComm: tComm * (1 - h.overlap) / stepAll }
+    };
+  }
+
+  // ======================= PD 分离（Prefill / Decode 分开放） =======================
+  // 参考：DistServe(OSDI'24)、Splitwise(ISCA'24)、Mooncake(FAST'25) 的 PD 拆分模型
+  function computePD(input) {
+    const c = input.model ? input : group(input);
+    const num = (v, d) => (v === '' || v === null || v === undefined || !isFinite(+v)) ? d : +v;
+    const m = Object.assign({ attn: 'gqa' }, c.model);
+    const l = Object.assign({}, c.load);
+    const s = Object.assign({ on: 0 }, c.spec);
+    const p = Object.assign({}, c.pd);
+    const DM = { params: 7, active: 7, layers: 32, hidden: 4096, heads: 32, kvHeads: 8, headDim: 128, wBytes: 2, kvBytes: 2, window: 0, mlaLatent: 512, mlaRope: 64, kvOverride: 0, activePre: 0, attnWin: 0 };
+    const DL = { inLen: 512, outLen: 128, conc: 24, maxLen: 8192, batchTokens: 2048, prefixHit: 0, sloTTFT: 2000, sloTPOT: 50, actBase: 0.6, actCoef: 6, stepMs: 1.5, overhead: 8, queue: 0.3 };
+    for (const k in DM) m[k] = num(m[k], DM[k]);
+    for (const k in DL) l[k] = num(l[k], DL[k]);
+    l.conc = Math.max(1, Math.round(l.conc));
+    l.inLen = Math.max(1, l.inLen);
+    l.outLen = Math.max(1, l.outLen);
+    l.maxLen = Math.max(l.inLen + l.outLen, l.maxLen);
+
+    const kbt = m.kvOverride > 0 ? m.kvOverride : kvPerToken(m);
+    const W = m.params * GB * m.wBytes;
+    const actPre = m.activePre > 0 ? m.activePre : m.active;
+    const TPS = s.on ? 1 + s.gamma : 1;
+    const E = s.on ? (s.E > 0 ? s.E : (s.alpha >= 0.999 ? s.gamma + 1 : (1 - Math.pow(s.alpha, s.gamma + 1)) / (1 - s.alpha))) : 1;
+    const specCost = s.on ? 1 + s.cost * s.gamma : 1;
+    const ctxCap = m.window > 0 ? Math.min(l.maxLen, m.window) : l.maxLen;
+    const ctx = Math.min(l.inLen + l.outLen, ctxCap);
+    const ctxAvg = Math.min(l.inLen + l.outLen / 2, ctxCap);
+
+    const hP = HW[p.preHw] || HW['h100'];
+    const hD = HW[p.decHw] || HW['h200'];
+    const nP = Math.max(1, Math.round(num(p.preCount, 1)));
+    const nD = Math.max(1, Math.round(num(p.decCount, 1)));
+    const tpP = Math.max(1, Math.round(num(p.preTp, 1)));
+    const tpD = Math.max(1, Math.round(num(p.decTp, 1)));
+    const ppP = Math.max(1, Math.round(num(p.prePp, 1)));
+    const ppD = Math.max(1, Math.round(num(p.decPp, 1)));
+    const parP = tpP * ppP, parD = tpD * ppD;
+    // HW 表里存的是 BF16 dense 算力；FP8/INT8 翻倍（与一体部署的 applyDtype 规则一致）
+    const fMul = m.wBytes >= 2 ? 1 : 2;
+    const flopsP = hP.flops * fMul, flopsD = hD.flops * fMul;
+    const linkBw = Math.max(0.1, num(p.link, 25)) * GB * num(p.linkEff, 0.8);
+    const handoff = Math.max(0, num(p.handoff, 6));
+
+    // ---------- 预填充侧 ----------
+    const sPreWin = m.attnWin > 0 ? Math.min(l.inLen, m.attnWin) : l.inLen;
+    const flopsPreReq = 2 * actPre * GB * l.inLen + 2 * m.layers * sPreWin * sPreWin * (m.heads * m.headDim);
+    const tPreMs = flopsPreReq / (parP * flopsP * 1e12 * hP.mfuPre) * 1000;
+    const rPrePer = parP * flopsP * 1e12 * hP.mfuPre / (2 * actPre * GB);   // 单实例 tok/s
+    const rPreTot = nP * rPrePer;                                             // 全集群 tok/s
+    const memPre = W / parP + l.actBase * GB + l.inLen * kbt / parP;           // 权重+运行时+一条请求的 KV 缓冲
+    const budgetP = hP.vram * GIB * num(p.preUtil, 0.9);
+    const rpsPre = rPreTot / l.inLen;                                          // 请求/秒
+
+    // ---------- 解码侧 ----------
+    const budgetD = hD.vram * GIB * num(p.decUtil, 0.9);
+    const memDecW = W / parD;
+    const actD = l.actBase * GB + l.actCoef * l.batchTokens * m.hidden * 2 / tpD;
+    const freeD = budgetD - memDecW - actD;
+    const concPer = freeD > 0 ? Math.floor(freeD / (ctx * kbt / parD)) : 0;
+    const concMax = concPer * nD;
+    const B = Math.max(1, Math.min(l.conc, Math.max(1, concMax)));
+    const Bper = Math.ceil(B / nD);
+    const mfuD = k => Math.min(hD.mfuDec * 2.5, Math.max(hD.mfuDec * 0.5, hD.mfuDec * Math.pow(Math.max(1, k * TPS) / 32, 0.35)));
+    const sDec = m.attnWin > 0 ? Math.min(ctxAvg, m.attnWin) : ctxAvg;
+    const flopsStep = 2 * m.active * GB * Bper * TPS + 4 * m.layers * sDec * (m.heads * m.headDim) * Bper * TPS;
+    const bytesStep = W + Bper * TPS * ctxAvg * kbt;
+    const tBw = bytesStep / (parD * hD.bw * GB * hD.bwEff);
+    const tFl = flopsStep / (parD * flopsD * 1e12 * mfuD(Bper));
+    const commBytes = 2 * m.layers * Bper * TPS * m.hidden * 2 * (tpD - 1) / tpD;
+    const tComm = tpD > 1 ? commBytes / (Math.max(1, hD.link) * GB * 0.7) + 2 * m.layers * hD.lat * 1e-6 : 0;
+    const step = (Math.max(tBw, tFl) + tComm * 0.7 + l.stepMs / 1000) * specCost;
+    const tpot = step / E * 1000;
+    const decTps = B * E / step;                                               // 全集群输出 tok/s
+    const rpsDec = decTps / l.outLen;
+
+    // ---------- KV 传输 ----------
+    const kvReq = l.inLen * kbt;                                               // 只搬 prompt 的 KV，生成长出来的 KV 在解码侧本地追加
+    const xferMs = kvReq / linkBw * 1000;
+    const linkRps = nD * linkBw / kvReq;                                       // 每解码节点一条链路的合计上限
+
+    // ---------- 系统 ----------
+    const ttft = tPreMs + xferMs + tpot + handoff;
+    const rps = Math.min(rpsPre, rpsDec, linkRps);
+    const outTps = rps * l.outLen;
+    const oomPre = memPre > budgetP;
+    const oomDec = concMax <= 0 || B >= concMax && l.conc > concMax;
+
+    const walls = [
+      { k: '预填充算力', v: m0(rps, rpsPre), d: `单请求 ${(flopsPreReq / 1e12).toFixed(2)} TFLOP ÷ (${nP}×${parP} 卡 × ${hP.flops} × MFU ${hP.mfuPre}) → ${tPreMs.toFixed(0)} ms/请求；集群上限 ${rpsPre.toFixed(1)} req/s` },
+      { k: '解码吞吐', v: m0(rps, rpsDec), d: `单步 ${(step * 1000).toFixed(1)} ms（带宽 ${(tBw * 1000).toFixed(1)} / 算力 ${(tFl * 1000).toFixed(1)} ms）→ ${rpsDec.toFixed(1)} req/s` },
+      { k: 'KV 链路', v: m0(rps, linkRps), d: `单请求搬 ${(kvReq / 1e6).toFixed(1)} MB ÷ ${(linkBw / GB).toFixed(1)} GB/s = ${xferMs.toFixed(1)} ms；上限 ${linkRps.toFixed(1)} req/s` },
+      { k: '解码显存', v: concMax > 0 ? Math.min(1, l.conc / concMax) : 1, d: `单实例 ${concPer} 路 × ${nD} 台 = ${concMax} 路（每路 ${(ctx * kbt / parD / GIB).toFixed(2)} GiB/卡）` }
+    ];
+    function m0(a, b) { return b > 0 ? Math.min(1, a / b) : 0; }
+    walls.sort((a, b) => b.v - a.v);
+
+    const oom = oomPre || oomDec || concMax < 1;
+    let tag, cls, text, sub;
+    if (oom) {
+      tag = '显存墙'; cls = 'bad';
+      text = oomPre ? `预填充侧装不下：权重+KV 缓冲 ${(memPre / GIB).toFixed(1)} > ${(budgetP / GIB).toFixed(1)} GiB/卡。`
+                    : `解码侧装不下：${l.conc} 路 > 上限 ${concMax} 路（每路 ${(ctx * kbt / parD / GIB).toFixed(2)} GiB/卡）。`;
+      sub = `调整 TP/卡数或缩短上下文；预填充 ${nP}×${hP.n}（TP${tpP}×PP${ppP}），解码 ${nD}×${hD.n}（TP${tpD}×PP${ppD}）。`;
+    } else if (walls[0].v < 0.45) {
+      tag = '均未饱和'; cls = 'ok';
+      text = `两侧利用率都不高（最高 ${walls[0].k} ${(walls[0].v * 100).toFixed(0)}%），当前并发下不是资源瓶颈。`;
+      sub = `TTFT ${ttft.toFixed(0)} ms、TPOT ${tpot.toFixed(1)} ms，吞吐上限 ${outTps.toFixed(0)} tok/s。`;
+    } else {
+      tag = walls[0].k + '墙'; cls = walls[0].k === '预填充算力' ? 'warn' : (walls[0].k === 'KV 链路' ? 'vio' : 'acc');
+      text = `系统吞吐上限 ${rps.toFixed(1)} req/s（${outTps.toFixed(0)} tok/s）由「${walls[0].k}」决定，占 ${(walls[0].v * 100).toFixed(0)}%。`;
+      sub = `TTFT = 预填充 ${tPreMs.toFixed(0)} + KV 传输 ${xferMs.toFixed(1)} + 首步 ${tpot.toFixed(1)} + 握手 ${handoff} ms = ${ttft.toFixed(0)} ms。`;
+    }
+
+    const ratio = rpsPre > 0 && rpsDec > 0
+      ? `按当前负载，P:D 卡数比约 ${(rpsDec / rpsPre).toFixed(2)} : 1（P 侧 ${nP} 卡对 D 侧 ${nD} 卡，理论需求 ${(rps / rpsPre * 100).toFixed(0)}% / ${(rps / rpsDec * 100).toFixed(0)}%）`
+      : '';
+
+    const adv = [];
+    if (oom) adv.push(`显存超限：${oomPre ? `预填充每卡需 ${(memPre / GIB).toFixed(1)} GiB` : `解码每路需 ${(ctx * kbt / parD / GIB).toFixed(2)} GiB/卡`}，超预算 ${(budgetP / GIB).toFixed(1)}/${(budgetD / GIB).toFixed(1)} GiB。优先调大 TP、缩短上下文或降低并发。`);
+    if (walls[0].k === '预填充算力' && !oom) adv.push(`预填充是瓶颈：加 P 卡或提高 MFU；预填充只需要算力，用高 FLOPS/¥ 的卡（H100）比 H200 更划算。`);
+    if (walls[0].k === '解码吞吐' && !oom) adv.push(`解码是瓶颈：decode 主要吃带宽，把 D 侧换成高带宽卡（H200 4.8 TB/s）或加卡；也可以 KV 量化到 fp8 直接减半。`);
+    if (walls[0].k === 'KV 链路' && !oom) adv.push(`KV 链路是瓶颈：单请求要搬 ${(kvReq / 1e6).toFixed(1)} MB，链路 ${(linkBw / GB).toFixed(1)} GB/s 撑不住。上 RDMA（100–400 Gbps）、KV 量化、或按前缀复用 KV。`);
+    if (rpsPre > 0 && rpsDec > 0) adv.push(`配比：${ratio}。P:D 失衡时多出来的卡是浪费，先按瓶颈侧补卡。`);
+    if (xferMs > tpot) adv.push(`KV 传输（${xferMs.toFixed(1)} ms）已超过解码单步（${tpot.toFixed(1)} ms）：这种上下文长度下 PD 的收益会被传输吃掉，建议缩短链路或压缩 KV。`);
+
+    const steps = [
+      ['预填充单请求', `2·P_act·S_in + 2·L·S_in²·(n_h·d_h) ÷ (TP·FLOPS·MFU)`, `${tPreMs.toFixed(0)} ms`],
+      ['KV 传输', `S_in·KV/tok ÷ (链路带宽×效率) = ${(kvReq / 1e6).toFixed(1)} MB ÷ ${(linkBw / GB).toFixed(1)} GB/s`, `${xferMs.toFixed(1)} ms`],
+      ['TTFT', `预填充 + KV 传输 + 首步 + 握手`, `${ttft.toFixed(0)} ms`],
+      ['解码每步字节', `W + 并发 × ctx × KV/tok`, `${(bytesStep / GB).toFixed(1)} GB`],
+      ['TPOT', `max(字节÷带宽, FLOPs÷算力) + 通信 + 固定`, `${tpot.toFixed(1)} ms`],
+      ['预填充上限', `N_p × TP × FLOPS × MFU ÷ (2·P_act) ÷ S_in`, `${rpsPre.toFixed(1)} req/s`],
+      ['解码上限', `并发 × E ÷ 每步时间 ÷ S_out`, `${rpsDec.toFixed(1)} req/s`],
+      ['链路上限', `N_d × 链路 ÷ (ctx·KV/tok)`, `${linkRps.toFixed(1)} req/s`],
+      ['系统吞吐', `min(预填充, 解码, 链路)`, `${rps.toFixed(1)} req/s / ${outTps.toFixed(0)} tok/s`],
+      ['解码并发上限', `(显存 − 权重) ÷ (ctx × KV/tok ÷ TP) × 台数`, `${concMax} 路`]
+    ];
+
+    return {
+      pd: true, oom, tag, verdict: { tag, cls, text, sub }, walls, adv, steps,
+      model: m, load: l,
+      pre: { hw: hP, n: nP, tp: tpP, pp: ppP, par: parP, ms: tPreMs, rps: rpsPre, rTok: rPreTot, mem: memPre, memW: W / parP, memKv: l.inLen * kbt / parP, memAct: l.actBase * GB, budget: budgetP, flops: flopsPreReq, ai: flopsPreReq / (W + l.inLen * kbt), tflops: flopsPreReq / (parP * flopsP * 1e12) },
+      dec: { hw: hD, n: nD, tp: tpD, pp: ppD, par: parD, stepMs: step * 1000, tpot, rps: rpsDec, tps: decTps, bytes: bytesStep, flops: flopsStep, bwMs: tBw * 1000, flMs: tFl * 1000, commMs: tComm * 1000, concPer, concMax, memW: memDecW, memKv: concPer * ctx * kbt / parD, act: actD, budget: budgetD, ai: flopsStep / bytesStep, mfu: mfuD(Bper) },
+      xfer: { kv: kvReq, ms: xferMs, rps: linkRps, bw: linkBw },
+      sys: { ttft, rps, outTps, linkRps, ratio, b: B },
+      kvTok: kbt, weightsGB: W / GB, concMax
+    };
+  }
+
+
+  // 由模型库条目构造一份完整配置（校验用）
+  function cfgFrom(id) {
+    const mo = MODELS.find(x => x.id === id);
+    return Object.assign({}, BASE, {
+      'model.params': mo.params, 'model.active': mo.active, 'model.activePre': mo.activePre || 0,
+      'model.layers': mo.layers, 'model.hidden': mo.hidden, 'model.heads': mo.heads,
+      'model.kvHeads': mo.kvHeads, 'model.headDim': mo.headDim, 'model.attn': mo.attn,
+      'model.mlaLatent': mo.mlaLatent || 512, 'model.mlaRope': mo.mlaRope || 64,
+      'model.kvOverride': mo.kvOverride || 0, 'load.maxLen': Math.min(8192, mo.maxLen)
+    });
+  }
+
+  const VALID = {
+    formula: [
+      { n: 'KV/token（27B-FP8）', u: 'KiB', m: 128, src: 'vLLM 日志 221,184 tok ↔ 27.0 GiB', f: E => E.compute(PRESETS.qwen27b.v).kvTok / 1024 },
+      { n: 'KV 容量（8K ctx）', u: '路', m: 27, src: '221,184 ÷ 8,192 = 27', f: E => E.compute(PRESETS.qwen27b.v).maxConcLen },
+      { n: 'KV 池（vLLM 口径）', u: 'k tok', m: 221, src: 'vLLM 日志 GPU KV cache size: 221,184', f: E => E.compute(PRESETS.qwen27b.v).kvPoolTok / 1e3 },
+      { n: 'MLA KV/token（DeepSeek-V2）', u: 'KB', m: 70.0, src: '论文：61 层 × (512+64) × bf16 ≈ 70KB', f: E => E.compute(PRESETS.dsv3.v).kvTok / 1e3 },
+      { n: 'Llama-3-70B 权重', u: 'GB', m: 141, src: '70.6B × 2B', f: E => E.compute(PRESETS.llama70b.v).weightsGB },
+      { n: 'H100 平衡点', u: 'FLOP/B', m: 295, src: '989 TFLOPS ÷ 3.35 TB/s', f: E => E.compute(PRESETS.llama70b.v).tune.ridge },
+      { n: 'KV/token（V4.1-Flash）', u: 'B', m: 890, src: '官方 README：全局 KV 890 B/token', f: E => E.compute(cfgFrom('dsv41-flash-1017')).kvTok },
+      { n: 'KV/token（Kimi-K3）', u: 'B', m: 13824, src: '24 层 MLA × (512+64) × fp8', f: E => E.compute(cfgFrom('kimi-k3')).kvTok },
+      { n: 'KV/token（GLM-5.3）', u: 'B', m: 44928, src: '78 层 MLA × (512+64) × fp8', f: E => E.compute(cfgFrom('glm-5.3')).kvTok }
+    ],
+    perf: [
+      { n: 'TPOT C=1', u: 'ms', m: 12.66, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 1 })).dec.tpot },
+      { n: 'TPOT C=4', u: 'ms', m: 14.29, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 4 })).dec.tpot },
+      { n: 'TPOT C=8', u: 'ms', m: 15.91, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 8 })).dec.tpot },
+      { n: 'TPOT C=16', u: 'ms', m: 18.49, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 16 })).dec.tpot },
+      { n: 'TPOT C=32', u: 'ms', m: 24.16, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 32 })).dec.tpot },
+      { n: 'TTFT C=1（371 tok）', u: 'ms', m: 76.4, f: E => E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 1 })).e2e.ttft },
+      { n: 'MTP K=3 加速比（C=1）', u: '×', m: 1.88, f: E => {
+          const sp = SPEC_METHODS.find(x => x.id === 'mtp');
+          const b = E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 1 }));
+          const s = E.compute(Object.assign({}, PRESETS.qwen27b.v, { 'load.conc': 1,
+            'spec.on': 1, 'spec.gamma': sp.gamma, 'spec.alpha': sp.alpha, 'spec.cost': sp.cost, 'spec.E': sp.E }));
+          return b.dec.tpot / s.dec.tpot;
+        } }
+    ]
+  };
+
+  function runValidation() {
+    const F = VALID.formula.map(c => { const p = c.f(ENGINE_LIKE()); return { ...c, p, e: Math.abs(p - c.m) / Math.abs(c.m) * 100 }; });
+    const P = VALID.perf.map(c => { const p = c.f(ENGINE_LIKE()); return { ...c, p, e: Math.abs(p - c.m) / Math.abs(c.m) * 100 }; });
+    const mape = P.reduce((a, b) => a + b.e, 0) / Math.max(1, P.length);
+    return { F, P, mape };
+  }
+  function ENGINE_LIKE() { return { compute, PRESETS }; }
+
+  return { compute, computePD, group, kvPerToken, PRESETS, HW, BASE, MODELS, WORKLOADS, SPEC_METHODS, VALID, runValidation };
+})();
+/* ==ENGINE-END== */
+
+/* ---------- UI ---------- */
+const S = Object.assign({}, ENGINE.BASE);
+const $ = s => document.querySelector(s);
+const FIELDS = [
+  { g:'model', k:'model.params', l:'参数总量', u:'B', step:0.1, t:'含 embedding 的训练参数量' },
+  { g:'model', k:'model.active', l:'激活参数', u:'B', step:0.1, t:'MoE 时远小于总量；dense 模型填同值' },
+  { g:'model', k:'model.layers', l:'层数 L', step:1 },
+  { g:'model', k:'model.hidden', l:'隐藏维度 d', step:128 },
+  { g:'model', k:'model.heads', l:'注意力头 n_h', step:1 },
+  { g:'model', k:'model.kvHeads', l:'KV 头 n_kv', step:1, t:'GQA/MQA 时小于 n_h；MLA 时忽略' },
+  { g:'model', k:'model.headDim', l:'head_dim', step:8 },
+  { g:'model', k:'model.attn', l:'注意力', type:'sel', opts:[['gqa','GQA / MHA'],['mla','MLA（DeepSeek）']] },
+  { g:'model', k:'model.mlaLatent', l:'MLA d_c', step:64, t:'仅 MLA：KV 压缩维度' },
+  { g:'model', k:'model.mlaRope', l:'MLA d_r', step:8, t:'仅 MLA：RoPE 携带维度' },
+  { g:'model', k:'model.wBytes', l:'权重精度', type:'sel', opts:[['2','BF16/FP16 (2B)'],['1','FP8 (1B)'],['0.53','INT4 组量化 (0.53B)']] },
+  { g:'model', k:'model.kvBytes', l:'KV 精度', type:'sel', opts:[['2','BF16 (2B)'],['1','FP8 (1B)'],['0.53','INT4 (0.53B)']] },
+  { g:'model', k:'model.activePre', l:'Prefill 激活', u:'B', step:0.1, t:'0=与激活参数相同。CED 架构（如 DeepSeek-V4）prefill 与 decode 激活不同' },
+  { g:'model', k:'model.kvOverride', l:'KV/token 覆盖', u:'B', step:16, t:'0=按公式算。CSA2 共享 KV / KDA 线性注意力等结构直接填官方每 token 字节数' },
+  { g:'model', k:'model.attnWin', l:'注意力窗口', u:'tok', step:1024, t:'0=全量 O(S²)。稀疏注意力（CSA2/MSA）填有效候选池长度，只改注意力 FLOPs，不改 KV 存储' },
+  { g:'model', k:'model.window', l:'滑窗 W', u:'tok', step:256, t:'0=全注意力；>0 时每序列 KV 只保留最近 W 个 token' },
+
+  { g:'hw', k:'hw.hwsel', l:'硬件预设', type:'sel', opts: Object.entries(ENGINE.HW).map(([k,v])=>[k, `${v.n} · ${v.tag}`]) },
+  { g:'hw', k:'hw.count', l:'卡数 N', step:1 },
+  { g:'hw', k:'hw.tp', l:'TP', step:1, t:'张量并行，切每一层；需整除注意力头数' },
+  { g:'hw', k:'hw.pp', l:'PP', step:1, t:'流水并行，按层切；会引入气泡' },
+  { g:'hw', k:'hw.vram', l:'显存', u:'GiB/卡', step:0.1 },
+  { g:'hw', k:'hw.bw', l:'HBM 带宽', u:'GB/s', step:1 },
+  { g:'hw', k:'hw.flops', l:'算力', u:'TFLOPS', step:1, t:'按当前计算精度填 dense 值；FP8 通常是 BF16 的 2 倍' },
+  { g:'hw', k:'hw.link', l:'卡间链路', u:'GB/s', step:1, t:'NVLink/HCCS/PCIe；单卡填 0' },
+  { g:'hw', k:'hw.lat', l:'通信延迟', u:'µs', step:1, t:'每次 all-reduce 的启停延迟' },
+  { g:'hw', k:'hw.util', l:'显存上限比', step:0.01, t:'vLLM gpu-memory-utilization' },
+  { g:'hw', k:'hw.mfuPre', l:'MFU(prefill)', step:0.01 },
+  { g:'hw', k:'hw.mfuDec', l:'MFU(decode)', step:0.01 },
+  { g:'hw', k:'hw.bwEff', l:'带宽效率', step:0.01 },
+  { g:'hw', k:'hw.overlap', l:'通信重叠率', step:0.05 },
+
+  { g:'load', k:'load.inLen', l:'输入长度', u:'tok', step:16 },
+  { g:'load', k:'load.outLen', l:'输出长度', u:'tok', step:16 },
+  { g:'load', k:'load.conc', l:'并发/批', u:'路', step:1 },
+  { g:'load', k:'load.maxLen', l:'最大上下文', u:'tok', step:1024, t:'max-model-len，决定 KV 预留粒度' },
+  { g:'load', k:'load.batchTokens', l:'批 token 上限', step:256, t:'max-num-batched-tokens，决定激活显存' },
+  { g:'load', k:'load.prefixHit', l:'前缀命中率', step:0.05, t:'prefix cache 省掉这部分 prefill' },
+  { g:'load', k:'load.sloTTFT', l:'TTFT SLO', u:'ms', step:10 },
+  { g:'load', k:'load.sloTPOT', l:'TPOT SLO', u:'ms', step:1 },
+  { g:'load', k:'load.qps', l:'目标 QPS', step:0.1, t:'0=不校验；>0 时给出所需并发' },
+
+  { g:'spec', k:'spec.on', l:'投机解码', type:'sel', opts:[['0','关闭'],['1','开启']] },
+  { g:'spec', k:'spec.gamma', l:'草稿长度 γ', step:1 },
+  { g:'spec', k:'spec.alpha', l:'接受率 α', step:0.01 },
+  { g:'spec', k:'spec.cost', l:'草稿开销 c', step:0.01, t:'每个草稿 token 相对目标模型一步的耗时比例' },
+  { g:'spec', k:'spec.draft', l:'草稿显存', u:'GB', step:0.1 },
+  { g:'spec', k:'spec.E', l:'实测 E（覆盖）', step:0.1, t:'>1 时直接用实测每步接受 token 数，忽略 α/γ 公式' },
+
+  { g:'tune', k:'load.overhead', l:'TTFT 固定开销', u:'ms', step:1 },
+  { g:'tune', k:'load.stepMs', l:'每步固定开销', u:'ms', step:0.1 },
+  { g:'tune', k:'load.actBase', l:'运行时基座', u:'GB/卡', step:0.1, t:'CUDA Graph + workspace + 框架常驻' },
+  { g:'tune', k:'load.actCoef', l:'激活系数', step:0.5 },
+  { g:'tune', k:'load.queue', l:'排队系数', step:0.05, t:'并发涌入时 TTFT 放大的经验系数' }
+];
+const GROUPS = [
+  { id:'model', t:'① 模型结构（选了上面的模型就不用动）' },
+  { id:'hw',    t:'② 硬件与并行' },
+  { id:'load',  t:'③ 负载 / SLO / 上下文', open:true },
+  { id:'spec',  t:'④ 投机解码参数' },
+  { id:'tune',  t:'⑤ 校准系数（按本机实测反推）' }
+];
+
+// ---------------- PD 分离模式 ----------------
+const PD_FIELDS = [
+  { g:'pd', k:'pd.preTp', l:'P 侧 TP', step:1, t:'预填充是算力墙，TP 太大会被 all-reduce 拖慢，一般 ≤4' },
+  { g:'pd', k:'pd.prePp', l:'P 侧 PP', step:1 },
+  { g:'pd', k:'pd.preUtil', l:'P 侧显存上限', step:0.01 },
+  { g:'pd', k:'pd.decTp', l:'D 侧 TP', step:1, t:'解码是带宽墙，TP 摊薄权重读取，但会增加通信' },
+  { g:'pd', k:'pd.decPp', l:'D 侧 PP', step:1 },
+  { g:'pd', k:'pd.decUtil', l:'D 侧显存上限', step:0.01 },
+  { g:'pd', k:'pd.link', l:'KV 链路带宽', u:'GB/s', step:1, t:'RDMA 200Gb/s ≈ 25 GB/s；同机 NVLink 可到 400 GB/s' },
+  { g:'pd', k:'pd.linkEff', l:'链路效率', step:0.05 },
+  { g:'pd', k:'pd.handoff', l:'交接开销', u:'ms', step:1, t:'调度、建链、握手等固定开销' }
+];
+const GROUPS_PD = [
+  { id:'model', t:'① 模型结构' },
+  { id:'pd',    t:'② PD 拓扑与链路', open:true },
+  { id:'load',  t:'③ 负载 / SLO / 上下文', open:true },
+  { id:'spec',  t:'④ 投机解码参数' },
+  { id:'tune',  t:'⑤ 校准系数' }
+];
+
+// 条件显示：MLA 维度只在 MLA 时出现；投机参数只在开启时出现
+const COND = {
+  'model.mlaLatent': s => s['model.attn'] === 'mla',
+  'model.mlaRope':   s => s['model.attn'] === 'mla',
+  'spec.gamma': s => +s['spec.on'] === 1, 'spec.alpha': s => +s['spec.on'] === 1,
+  'spec.cost':  s => +s['spec.on'] === 1, 'spec.draft': s => +s['spec.on'] === 1,
+  'spec.E':     s => +s['spec.on'] === 1
+};
+const MOVEG = { 'hw.mfuPre':'tune', 'hw.mfuDec':'tune', 'hw.bwEff':'tune', 'hw.overlap':'tune', 'hw.util':'tune' };
+FIELDS.forEach(f => {
+  if (COND[f.k]) f.when = COND[f.k];
+  if (MOVEG[f.k]) f.g = MOVEG[f.k];
+});
+
+function fldHtml(f) {
+  if (f.when && !f.when(S)) return '';
+  const v = S[f.k];
+  if (f.type === 'sel') {
+    return `<label class="fld ${f.wide?'wide':''}" title="${f.t||''}"><span>${f.l}</span>
+      <select data-k="${f.k}">${f.opts.map(o=>`<option value="${o[0]}" ${String(v)===String(o[0])?'selected':''}>${o[1]}</option>`).join('')}</select></label>`;
+  }
+  return `<label class="fld ${f.wide?'wide':''}" title="${f.t||''}"><span>${f.l}${f.u?` <i>${f.u}</i>`:''}</span>
+    <input type="number" data-k="${f.k}" value="${v}" step="${f.step||'any'}"></label>`;
+}
+function renderAdv() {
+  // 记住哪些分组是展开的，重渲染后保持原状（换模型/切注意力类型时不跳）
+  const open = {};
+  document.querySelectorAll('details.grp').forEach(d => { open[d.dataset.gid] = d.open; });
+  const pd = +S['pd.on'] === 1;
+  const groups = pd ? GROUPS_PD : GROUPS;
+  const fields = pd
+    ? FIELDS.filter(f => f.g !== 'hw' && f.k.indexOf('hw.') !== 0).concat(PD_FIELDS)
+    : FIELDS;
+  $('#adv').innerHTML = groups.map(g => {
+    const fs = fields.filter(f => f.g === g.id);
+    const isOpen = (g.id in open) ? open[g.id] : !!g.open;
+    return `<details class="grp" data-gid="${g.id}" ${isOpen ? 'open' : ''}><summary>${g.t}</summary>
+      <div class="grid">${fs.map(fldHtml).join('') || '<span class="muted">—</span>'}</div></details>`;
+  }).join('');
+}
+function syncInputs() {
+  document.querySelectorAll('[data-k]').forEach(el=>{
+    const k = el.dataset.k;
+    if (!(k in S)) return;
+    if (el.tagName === 'SELECT') el.value = String(S[k]); else el.value = S[k];
+  });
+}
+
+/* ---- 快速开始 ---- */
+const DTYPES = [['2','BF16'],['1','FP8'],['0.53','INT4']];
+function modelOpts() {
+  const fams = [...new Set(ENGINE.MODELS.map(m => m.family))];
+  return fams.map(f => `<optgroup label="${f}">` +
+    ENGINE.MODELS.filter(m => m.family === f).map(m => `<option value="${m.id}">${m.label}</option>`).join('') +
+    `</optgroup>`).join('') + `<option value="custom">自定义（在 ① 手填结构）</option>`;
+}
+function quickHtml() {
+  return `<div class="card qbar">
+    <h3>快速开始 <span class="qnote">改这 5 项就够</span></h3>
+    <div class="grid">
+      <label class="fld wide"><span>模型</span><select id="qModel">${modelOpts()}</select></label>
+      <label class="fld"><span>显卡</span><select id="qGpu">${Object.entries(ENGINE.HW).map(([k,v])=>`<option value="${k}">${v.n} · ${v.tag}</option>`).join('')}</select></label>
+      <label class="fld"><span>卡数</span><input id="qCount" type="number" min="1" step="1"></label>
+      <div class="qgpu" id="qGpuTip"></div>
+      <label class="fld"><span>精度</span><select id="qDtype">${DTYPES.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label>
+      <label class="fld"><span>业务场景</span><select id="qWork">${ENGINE.WORKLOADS.map(w=>`<option value="${w.id}">${w.label}</option>`).join('')}</select></label>
+      <label class="fld wide"><span>投机解码</span><select id="qSpec">${ENGINE.SPEC_METHODS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('')}</select></label>
+    </div>
+    <div class="qsum" id="qSum"></div>
+    <div class="qacts">
+      <button id="btnMaxConc" class="btn" title="按显存把并发拉到上限（单卡占用≈预算），看极限吞吐">取极限并发</button>
+      <button id="btnSloConc" class="btn" title="满足 TTFT/TPOT SLO 的最大并发">取 SLO 上限</button>
+      <button id="btnCopy" class="btn">复制摘要</button>
+      <span id="copyTip" class="tiny"></span>
+    </div>
+  </div><div id="adv"></div>`;
+}
+
+function quickHtmlPD() {
+  const hwOpts = Object.entries(ENGINE.HW).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+  return `<div class="card qbar">
+    <h3>快速开始 <span class="qnote">PD 分离：预填充与解码各选各的卡</span></h3>
+    <div class="grid">
+      <label class="fld wide"><span>模型</span><select id="qModel">${modelOpts()}</select></label>
+      <label class="fld"><span>预填充卡</span><select id="qPhw">${hwOpts}</select></label>
+      <label class="fld"><span>P 数量</span><input id="qPcount" type="number" min="1" step="1"></label>
+      <label class="fld"><span>解码卡</span><select id="qDhw">${hwOpts}</select></label>
+      <label class="fld"><span>D 数量</span><input id="qDcount" type="number" min="1" step="1"></label>
+      <div class="qgpu" id="qGpuTip"></div>
+      <label class="fld"><span>KV 链路</span><input id="qLink" type="number" min="0.1" step="1"></label>
+      <label class="fld"><span>精度</span><select id="qDtype">${DTYPES.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label>
+      <label class="fld"><span>业务场景</span><select id="qWork">${ENGINE.WORKLOADS.map(w=>`<option value="${w.id}">${w.label}</option>`).join('')}</select></label>
+      <label class="fld wide"><span>投机解码</span><select id="qSpec">${ENGINE.SPEC_METHODS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('')}</select></label>
+    </div>
+    <div class="qsum" id="qSum"></div>
+    <div class="qacts">
+      <button id="btnCopy" class="btn">复制摘要</button>
+      <span id="copyTip" class="tiny"></span>
+    </div>
+  </div><div id="adv"></div>`;
+}
+
+// 只在「换模型」时重排拓扑：对象变了，重新给一个装得下的 TP/PP
+function fitTopologyForModel() {
+  const per = S['model.params'] * 1e9 * S['model.wBytes'];
+  const cap = S['hw.vram'] * 1073741824 * S['hw.util'] * 0.85;
+  let tp = 1;
+  while (tp < 16 && per / tp > cap) tp *= 2;
+  // TP 到 16 还装不下 → 用 PP 继续切层（跨节点流水），而不是直接判显存不足
+  let pp = 1;
+  if (per / tp > cap) pp = Math.min(Math.max(1, Math.round(S['model.layers'] || 1)), Math.ceil(per / (cap * tp)));
+  const par = tp * pp;
+  S['q.autoTp'] = '';
+  // 上次是自动配的卡数，这次需求变小时允许回落，避免 "16 卡只用了 8 卡" 还按 16 卡算吞吐
+  if (+S['q.autoCount'] > 0 && S['hw.count'] === +S['q.autoCount']) S['hw.count'] = par;
+  if (S['hw.count'] < par) { S['hw.count'] = par; S['q.autoTp'] = '1'; }
+  S['q.autoCount'] = S['q.autoTp'] ? par : 0;
+  S['hw.tp'] = Math.min(tp, Math.max(1, S['hw.count']));
+  S['hw.pp'] = Math.max(1, Math.min(pp, Math.floor(S['hw.count'] / S['hw.tp'])));
+}
+// 卡数改小时只做必要裁剪：保证 TP×PP ≤ 卡数，不主动帮你「优化」拓扑
+function clampTopology() {
+  const c = Math.max(1, S['hw.count']);
+  if (S['hw.tp'] > c) S['hw.tp'] = c;
+  const maxPp = Math.max(1, Math.floor(c / S['hw.tp']));
+  if (S['hw.pp'] > maxPp) S['hw.pp'] = maxPp;
+}
+function syncQuick() {
+  const set = (sel, v) => { const el = $(sel); if (el) el.value = v; };
+  set('#qModel', S['model.id'] || 'custom');
+  set('#qDtype', String(S['model.wBytes']));
+  set('#qWork', S['load.work'] || 'bench');
+  set('#qSpec', S['spec.method'] || 'off');
+  const kvB = S['model.kvOverride'] > 0 ? S['model.kvOverride'] : ENGINE.kvPerToken(ENGINE.group(S).model);
+  const qs = $('#qSum');
+
+  if (+S['pd.on'] === 1) {
+    set('#qPhw', S['pd.preHw']); set('#qPcount', S['pd.preCount']);
+    set('#qDhw', S['pd.decHw']); set('#qDcount', S['pd.decCount']);
+    set('#qLink', S['pd.link']);
+    const hP = ENGINE.HW[S['pd.preHw']] || { n: '' };
+    const hD = ENGINE.HW[S['pd.decHw']] || { n: '' };
+    const tipEl = $('#qGpuTip');
+    if (tipEl) tipEl.innerHTML =
+      `<b>P</b> ${hP.n}：${hP.tag} · ${hP.bw} GB/s / ${hP.vram} GiB　　<b>D</b> ${hD.n}：${hD.tag} · ${hD.bw} GB/s / ${hD.vram} GiB`;
+    const perP = S['model.params'] * 1e9 * S['model.wBytes'] / (S['pd.preTp'] * S['pd.prePp']) / 1e9;
+    const perD = S['model.params'] * 1e9 * S['model.wBytes'] / (S['pd.decTp'] * S['pd.decPp']) / 1e9;
+    if (qs) qs.innerHTML = `P ${S['pd.preCount']}×${hP.n}（TP${S['pd.preTp']}·${perP.toFixed(0)} GB/卡）→ D ${S['pd.decCount']}×${hD.n}（TP${S['pd.decTp']}·${perD.toFixed(0)} GB/卡）· 链路 ${S['pd.link']} GB/s · ${fmt.kv(kvB)} KV/token`;
+    return;
+  }
+
+  set('#qGpu', S['hw.hwsel']);
+  set('#qCount', S['hw.count']);
+  const h = ENGINE.HW[S['hw.hwsel']] || { n: '' };
+  const tipEl = $('#qGpuTip');
+  if (tipEl) tipEl.innerHTML = `<b>${h.tag || ''}</b> · ${h.note || `${h.bw} GB/s · ${h.vram} GiB · 卡间 ${h.link} GB/s`}`;
+  const parNow = S['hw.tp'] * S['hw.pp'];
+  const dpNow = Math.max(1, Math.floor(S['hw.count'] / parNow));
+  const per = S['model.params'] * 1e9 * S['model.wBytes'] / parNow / 1e9;
+  if (qs) qs.innerHTML = `TP=${S['hw.tp']}${(+S['hw.pp']) > 1 ? '×PP=' + S['hw.pp'] : ''}${dpNow > 1 ? ` · ${dpNow} 副本` : ''} · 每卡权重 ${per.toFixed(1)} GB · ${fmt.kv(kvB)} KV/token · 上下文 ${S['load.maxLen']} · ${S['hw.count']}×${h.n}`
+    + (S['q.autoDtype'] ? ` <b style="color:#ffb703">（当前精度装不下，已切到 ${S['q.autoDtype']}）</b>` : '')
+    + (S['q.autoTp'] ? ` <b style="color:#ffb703">（放不下，已自动配到 ${S['hw.count']} 卡）</b>` : '');
+}
+function applyModel(id) {
+  const mo = ENGINE.MODELS.find(m => m.id === id);
+  if (!mo) { S['model.id'] = 'custom'; syncQuick(); return; }
+  S['model.id'] = id;
+  Object.assign(S, {
+    'model.params': mo.params, 'model.active': mo.active, 'model.layers': mo.layers,
+    'model.hidden': mo.hidden, 'model.heads': mo.heads, 'model.kvHeads': mo.kvHeads,
+    'model.headDim': mo.headDim, 'model.attn': mo.attn,
+    'model.mlaLatent': mo.mlaLatent || 512, 'model.mlaRope': mo.mlaRope || 64,
+    'model.window': mo.window || 0,
+    'model.kvOverride': mo.kvOverride || 0, 'model.activePre': mo.activePre || 0, 'model.attnWin': mo.attnWin || 0
+  });
+  // 只有「当前精度装不下、且推荐精度确实不同」才切；否则保留你选的
+  S['q.autoDtype'] = '';
+  if (mo.pref && +mo.pref !== +S['model.wBytes'] && !dtypeFits(S['model.wBytes'], mo)) {
+    applyDtype(mo.pref);
+    const dt = DTYPES.find(d => +d[0] === +mo.pref);
+    S['q.autoDtype'] = dt ? dt[1] : String(mo.pref);
+  }
+  // 上下文由业务场景决定，模型只做上限约束（不把 maxLen 直接顶到模型原生上限）
+  S['load.maxLen'] = Math.min(S['load.maxLen'] || 8192, mo.maxLen);
+  fitCtx();
+  fitTopologyForModel(); renderAdv(); syncInputs(); syncQuick(); update();
+}
+function applyDtype(b) {
+  b = +b;
+  S['model.wBytes'] = b; S['model.kvBytes'] = b >= 2 ? 2 : 1;
+  const base = ENGINE.HW[S['hw.hwsel']] ? ENGINE.HW[S['hw.hwsel']].flops : S['hw.flops'];
+  S['hw.flops'] = Math.round(base * (b >= 2 ? 1 : 2) * 10) / 10;
+  S['q.autoDtype'] = '';
+}
+// 这个模型用当前精度、当前卡数能不能装下（能切到 TP×PP ≤ 卡数即可）
+function dtypeFits(b, mo) {
+  const per = mo.params * 1e9 * b;
+  const cap = S['hw.vram'] * 1073741824 * S['hw.util'] * 0.85;
+  return per / Math.max(1, S['hw.count']) <= cap;
+}
+function applyGpu(id) {
+  const h = ENGINE.HW[id]; if (!h) return;
+  Object.assign(S, { 'hw.hwsel': id, 'hw.vram': h.vram, 'hw.bw': h.bw, 'hw.link': h.link, 'hw.lat': h.lat,
+    'hw.bwEff': h.bwEff, 'hw.mfuPre': h.mfuPre, 'hw.mfuDec': h.mfuDec });
+  applyDtype(S['model.wBytes']); clampTopology(); syncInputs(); syncQuick(); update();
+}
+function fitCtx() {
+  // 输入 + 输出不能超过 max-model-len，超了就把输入压到上限（结果条里显示的是实际值）
+  const room = Math.max(1, S['load.maxLen'] - S['load.outLen']);
+  S['load.inLen'] = Math.max(1, Math.min(S['load.inLen'], room));
+}
+function applyWork(id) {
+  const w = ENGINE.WORKLOADS.find(x => x.id === id); if (!w) return;
+  const mo = ENGINE.MODELS.find(m => m.id === S['model.id']);
+  S['load.work'] = id;
+  Object.assign(S, { 'load.inLen': w.inLen, 'load.outLen': w.outLen,
+    'load.maxLen': Math.min(w.maxLen, mo ? mo.maxLen : w.maxLen) });
+  fitCtx();
+  syncInputs(); syncQuick(); update();
+}
+function applySpec(id) {
+  const m = ENGINE.SPEC_METHODS.find(x => x.id === id); if (!m) return;
+  S['spec.method'] = id;
+  Object.assign(S, { 'spec.on': m.on, 'spec.gamma': m.gamma, 'spec.alpha': m.alpha,
+    'spec.cost': m.cost, 'spec.draft': m.draft, 'spec.E': m.E });
+  renderAdv(); syncInputs(); syncQuick(); update();
+}
+
+const fmt = {
+  gb: x => (x/1e9).toFixed(2) + ' GB',
+  gib: x => (x/1073741824).toFixed(2) + ' GiB',
+  ms: x => (x >= 100 ? x.toFixed(0) : x >= 10 ? x.toFixed(1) : x.toFixed(2)) + ' ms',
+  n: x => (x >= 10000 ? Math.round(x).toLocaleString('en-US') : x >= 100 ? x.toFixed(0) : x.toFixed(1)),
+  kv: b => b >= 1024 ? (b / 1024).toFixed(b / 1024 >= 100 ? 0 : 1) + ' KiB' : Math.round(b) + ' B',
+  tok: n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(Math.round(n))
+};
+
+function bar(segs, total) {
+  const sum = segs.reduce((a,b)=>a+b.v,0);
+  const scale = Math.max(total, sum);
+  return `<div class="bar">${segs.map(s=>`<i style="width:${(s.v/scale*100).toFixed(2)}%;background:${s.c}" title="${s.n}"></i>`).join('')}</div>`;
+}
+
+function svgRoofline(r) {
+  const W = 500, H = 270, L = 56, R = 18, T = 26, B = 40;
+  const aiD = Math.max(0.1, r.dec.ai), aiP = Math.max(0.1, r.pre.ai);
+  const x0 = Math.max(0.05, Math.min(aiD, r.tune.ridge, aiP) / 4);
+  const x1 = Math.max(aiP, r.tune.ridge) * 6;
+  const y0 = 0.5, y1 = Math.max(4, r.peak * 1.35);
+  const lg = Math.log10;
+  const X = v => L + (lg(Math.max(v,x0))-lg(x0))/(lg(x1)-lg(x0))*(W-L-R);
+  const Y = v => H-B - (lg(Math.max(v,y0))-lg(y0))/(lg(y1)-lg(y0))*(H-T-B);
+  let g = '';
+  for (let e = -1; e <= 7; e++) {
+    const xv = Math.pow(10, e); if (xv < x0 || xv > x1) continue;
+    g += `<line x1="${X(xv)}" y1="${T}" x2="${X(xv)}" y2="${H-B}" stroke="#1b2436"/><text x="${X(xv)}" y="${H-B+15}" fill="#5f7290" font-size="10" text-anchor="middle">${xv >= 1000 ? (xv/1000)+'k' : xv}</text>`;
+  }
+  for (let e = -1; e <= 6; e++) {
+    const yv = Math.pow(10, e); if (yv < y0 || yv > y1) continue;
+    g += `<line x1="${L}" y1="${Y(yv)}" x2="${W-R}" y2="${Y(yv)}" stroke="#1b2436"/><text x="${L-6}" y="${Y(yv)+3}" fill="#5f7290" font-size="10" text-anchor="end">${yv>=1000?yv/1000+'k':yv}</text>`;
+  }
+  const bwRoof = [];
+  for (let i = 0; i <= 48; i++) {
+    const xv = Math.pow(10, lg(x0) + i/48*(lg(x1)-lg(x0)));
+    const yv = r.tune.bwLine * xv;
+    if (yv > y1) break;
+    bwRoof.push([xv, yv]);
+  }
+  const pts = (arr) => arr.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}`;
+  if (bwRoof.length > 1) s += `<polyline points="${pts(bwRoof)}" fill="none" stroke="#4cc9f0" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${L}" y1="${Y(Math.min(y1,r.peak))}" x2="${W-R}" y2="${Y(Math.min(y1,r.peak))}" stroke="#ffb703" stroke-width="1.6"/>`;
+  const ridgeX = Math.min(x1, r.tune.ridge), ridgeY = Math.min(r.peak, r.tune.bwLine * ridgeX);
+  s += `<circle cx="${X(ridgeX)}" cy="${Y(ridgeY)}" r="3.5" fill="#ffb703"/>`;
+  const yD = Math.min(y1, Math.max(y0, r.dec.tflops)), yP = Math.min(y1, Math.max(y0, r.pre.tflops));
+  s += `<circle cx="${X(r.dec.ai)}" cy="${Y(yD)}" r="5" fill="#ff5d73" stroke="#0a0e15" stroke-width="1.5"/>`;
+  s += `<circle cx="${X(r.pre.ai)}" cy="${Y(yP)}" r="5" fill="#39d98a" stroke="#0a0e15" stroke-width="1.5"/>`;
+  // 标签避开顶部/右侧边界
+  const lab = (x, y, txt, col) => `<text x="${Math.min(x, W-R-46)}" y="${y < T+22 ? y + 16 : y - 8}" fill="${col}" font-size="10.5">${txt}</text>`;
+  s += lab(X(r.dec.ai)+8, Y(yD), `decode ${fmt.n(r.dec.tflops)} TF`, '#ff8c9c');
+  s += lab(X(r.pre.ai)+8, Y(yP), `prefill ${fmt.n(r.pre.tflops)} TF`, '#6fe3ad');
+  s += `<text x="${W-R}" y="${Y(Math.min(y1,r.peak))-6}" fill="#ffb703" font-size="10.5" text-anchor="end">算力屋顶 ${fmt.n(r.peak)} TFLOPS</text>`;
+  s += `<text x="${L+8}" y="${T+12}" fill="#4cc9f0" font-size="10.5">带宽屋顶</text>`;
+  s += `<text x="${W/2}" y="${H-6}" fill="#5f7290" font-size="10.5" text-anchor="middle">算术强度 FLOP/byte（对数轴）</text>`;
+  return s + `</svg>`;
+}
+
+function svgCurve(r) {
+  const W = 480, H = 190, L = 48, R = 14, T = 16, B = 30;
+  const pts = r.curve;
+  if (!pts.length) return `<svg viewBox="0 0 ${W} ${H}"></svg>`;
+  const maxC = pts[pts.length-1].c, maxT = Math.max(...pts.map(p=>p.tps), 1) * 1.08;
+  const X = c => L + (c-1)/Math.max(1,maxC-1)*(W-L-R);
+  const Y = v => H-B - Math.min(v, maxT)/maxT*(H-T-B);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = maxT*i/4;
+    g += `<line x1="${L}" y1="${Y(v)}" x2="${W-R}" y2="${Y(v)}" stroke="#1b2436"/><text x="${L-5}" y="${Y(v)+3}" fill="#5f7290" font-size="10" text-anchor="end">${fmt.n(v)}</text>`;
+  }
+  const seg = (arr, color, dash) => arr.length > 1
+    ? `<polyline points="${arr.map(p=>`${X(p.c).toFixed(1)},${Y(p.tps).toFixed(1)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.8" ${dash?'stroke-dasharray="4 4" opacity=".55"':''}/>` : '';
+  g += seg(pts.filter(p=>p.ok), '#4cc9f0', false);
+  g += seg(pts.filter(p=>!p.ok), '#4cc9f0', true);
+  if (r.capC < maxC) {
+    g += `<line x1="${X(r.capC)}" y1="${T}" x2="${X(r.capC)}" y2="${H-B}" stroke="#ff5d73" stroke-dasharray="3 3"/>`;
+    g += `<text x="${X(r.capC)-4}" y="${T+9}" fill="#ff8c9c" font-size="10" text-anchor="end">显存上限 ${r.capC} 路</text>`;
+  }
+  const cur = pts.find(p => p.c === r.curC) || pts[0];
+  g += `<circle cx="${X(r.curC)}" cy="${Y(cur.tps)}" r="4.5" fill="#ff5d73"/>`;
+  g += `<text x="${W-R}" y="${H-6}" fill="#5f7290" font-size="10" text-anchor="end">并发路数 → ${maxC}</text>`;
+  g += `<text x="${L}" y="${T+2}" fill="#4cc9f0" font-size="10.5">输出吞吐 tok/s</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+function svgLat(r) {
+  const W = 480, H = 190, L = 48, R = 14, T = 16, B = 30;
+  const pts = r.curve; if (!pts.length) return `<svg viewBox="0 0 ${W} ${H}"></svg>`;
+  const maxC = pts[pts.length-1].c, maxT = Math.max(...pts.map(p=>p.tpot), 1) * 1.15;
+  const X = c => L + (c-1)/Math.max(1,maxC-1)*(W-L-R);
+  const Y = v => H-B - Math.min(v, maxT)/maxT*(H-T-B);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = maxT*i/4;
+    g += `<line x1="${L}" y1="${Y(v)}" x2="${W-R}" y2="${Y(v)}" stroke="#1b2436"/><text x="${L-5}" y="${Y(v)+3}" fill="#5f7290" font-size="10" text-anchor="end">${fmt.n(v)}</text>`;
+  }
+  const path = (arr, dash) => arr.length > 1
+    ? `<polyline points="${arr.map(p=>`${X(p.c).toFixed(1)},${Y(p.tpot).toFixed(1)}`).join(' ')}" fill="none" stroke="#b388ff" stroke-width="1.8" ${dash?'stroke-dasharray="4 4" opacity=".55"':''}/>` : '';
+  g += path(pts.filter(p=>p.ok), false);
+  g += path(pts.filter(p=>!p.ok), true);
+  if (r.capC < maxC) g += `<line x1="${X(r.capC)}" y1="${T}" x2="${X(r.capC)}" y2="${H-B}" stroke="#ff5d73" stroke-dasharray="3 3"/>`;
+  if (r.sloTpot <= maxT) {
+    g += `<line x1="${L}" y1="${Y(r.sloTpot)}" x2="${W-R}" y2="${Y(r.sloTpot)}" stroke="#ff5d73" stroke-dasharray="4 4" opacity=".8"/>`;
+    g += `<text x="${W-R}" y="${Y(r.sloTpot)-4}" fill="#ff5d73" font-size="10" text-anchor="end">SLO ${r.sloTpot} ms</text>`;
+  } else {
+    g += `<text x="${W-R}" y="${T+2}" fill="#ff5d73" font-size="10" text-anchor="end">SLO ${r.sloTpot} ms（在图表上方）</text>`;
+  }
+  g += `<text x="${L}" y="${T+2}" fill="#b388ff" font-size="10.5">TPOT ms/token</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+function viewPD(r) {
+  const pre = r.pre, dec = r.dec, xf = r.xfer;
+  const wallColor = k => k === '预填充算力' ? '#ffb703' : k === '解码吞吐' ? '#4cc9f0' : k === 'KV 链路' ? '#b388ff' : '#ff5d73';
+  const moName = (ENGINE.MODELS.find(x => x.id === S['model.id']) || {}).label || '自定义模型';
+  const dtName = (DTYPES.find(d => +d[0] === +S['model.wBytes']) || ['', '?'])[1];
+
+  const strip = `<div class="strip">
+    <span><b>${moName}</b></span><span>${dtName}</span>
+    <span>P：${pre.n}×${pre.hw.n} TP${pre.tp}</span>
+    <span>D：${dec.n}×${dec.hw.n} TP${dec.tp}</span>
+    <span>KV 链路 ${(S['pd.link'])} GB/s</span>
+    <span>${S['load.inLen']} / ${S['load.outLen']} tok</span><span>并发 ${S['load.conc']}</span>
+  </div>`;
+
+  const kpis = [
+    ['TTFT', fmt.ms(r.sys.ttft), `预填充 ${pre.ms.toFixed(0)} + 传输 ${xf.ms.toFixed(1)}`],
+    ['TPOT', fmt.ms(dec.tpot), '每输出 token'],
+    ['系统吞吐', fmt.n(r.sys.outTps)+' tok/s', `${r.sys.rps.toFixed(1)} req/s`],
+    ['并发上限', String(r.concMax), `${dec.concPer} 路 × ${dec.n} 台`],
+    ['KV 传输', fmt.ms(xf.ms), `${(xf.kv/1e6).toFixed(1)} MB/请求`],
+    ['P 侧占用', (r.walls.find(w=>w.k==='预填充算力').v*100).toFixed(0)+'%', `${pre.n}×${pre.hw.n}`],
+    ['D 侧占用', (r.walls.find(w=>w.k==='解码吞吐').v*100).toFixed(0)+'%', `${dec.n}×${dec.hw.n}`],
+    ['权重', r.weightsGB.toFixed(0)+' GB', `${fmt.kv(r.kvTok)}/token`]
+  ];
+
+  const barP = bar([
+    { v: pre.mem - S['load.actBase']*1e9 - S['load.inLen']*r.kvTok/pre.par, c:'#4cc9f0', n:'权重' },
+    { v: S['load.inLen']*r.kvTok/pre.par, c:'#b388ff', n:'KV 缓冲' },
+    { v: S['load.actBase']*1e9, c:'#ffb703', n:'运行时' }
+  ], pre.budget);
+  const barD = bar([
+    { v: dec.memW, c:'#4cc9f0', n:'权重' },
+    { v: dec.concPer * (Math.min(S['load.inLen']+S['load.outLen'], S['load.maxLen'])) * r.kvTok / dec.par, c:'#b388ff', n:'KV' },
+    { v: dec.act, c:'#ffb703', n:'运行时' }
+  ], dec.budget);
+
+  const wallRows = r.walls.map(w=>`
+    <div class="wrow">
+      <div class="wtop"><span class="wk">${w.k}</span><span class="wv">${(w.v*100).toFixed(0)}%</span></div>
+      <div class="wbar"><i style="width:${Math.min(100,w.v*100).toFixed(1)}%;background:${wallColor(w.k)}"></i></div>
+      <div class="wdesc">${w.d}</div>
+    </div>`).join('');
+
+  return `
+  ${strip}
+  <div class="verdict ${r.verdict.cls}">
+    <div class="vtag">${r.verdict.tag}</div>
+    <div class="vtext">${r.verdict.text}<small>${r.verdict.sub}</small></div>
+  </div>
+  <div class="kpis">${kpis.map(k=>`<div class="kpi"><b>${k[1]}</b><span>${k[0]} · ${k[2]}</span></div>`).join('')}</div>
+
+  <div class="grid2">
+    <div class="card"><h3>预填充侧显存（每卡，预算 ${fmt.gib(pre.budget)}）</h3>
+      ${barP}
+      <div class="muted" style="font-size:12px;margin-top:8px">权重 ${fmt.gib(pre.memW)} · KV 缓冲 ${fmt.gib(pre.memKv)} · 运行时 ${fmt.gib(pre.memAct)}；${pre.n} 台 × TP${pre.tp}${pre.pp>1?'×PP'+pre.pp:''}</div>
+    </div>
+    <div class="card"><h3>解码侧显存（每卡，预算 ${fmt.gib(dec.budget)}）</h3>
+      ${barD}
+      <div class="muted" style="font-size:12px;margin-top:8px">权重 ${fmt.gib(dec.memW)} · KV ${fmt.gib(dec.memKv)}（${dec.concPer} 路）· 运行时 ${fmt.gib(dec.act)}；${dec.n} 台 × TP${dec.tp}${dec.pp>1?'×PP'+dec.pp:''}</div>
+    </div>
+  </div>
+
+  <div class="card"><h3>瓶颈诊断（谁先把系统卡住）</h3>
+    ${wallRows}
+    <div class="muted" style="font-size:11.5px;margin-top:10px">PD 的系统吞吐 = min(预填充上限, 解码上限, 链路上限)。三者应大致相等，差太多说明 P:D 配比失衡。</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h3>计算链（代入值）</h3>
+      <table><thead><tr><th>指标</th><th>公式</th><th class="n">结果</th></tr></thead><tbody>
+      ${r.steps.map(s=>`<tr><td>${s[0]}</td><td><code>${s[1]}</code></td><td class="n">${s[2]}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="card"><h3>决策建议</h3><ul class="adv">${r.adv.map(a=>`<li>${a}</li>`).join('') || '<li class="muted">当前配置无明显瓶颈。</li>'}</ul>
+      <div class="muted" style="font-size:11.5px;margin-top:8px">依据：DistServe(OSDI'24) 证明 PD 拆分可让 TTFT/TPOT 解耦、SLO 内承载更多请求；Splitwise(ISCA'24) 提出 prefill/decode 用不同硬件；Mooncake(FAST'25) 用 KVCache 中心化调度提升吞吐。本模型只算资源账，不含调度器收益。</div>
+    </div>
+  </div>
+
+  <div class="card"><h3>模型校验：公式 vs 论文 / 本机实测</h3>
+    ${validationHtml()}
+    <div class="muted" style="margin-top:8px;font-size:12px">PD 侧自检：链路→∞ 时 TTFT 应等于「一体部署 TTFT + 一个解码步 + 握手」（实测偏差 <5%）；链路 2 GB/s 时应正确判为 KV 链路墙。</div>
+  </div>`;
+}
+
+function view(r) {
+  const c = r.curve;
+  const curC = Math.min(S['load.conc'], Math.max(1, r.maxConc));
+  const r2 = Object.assign({}, r, { curC, capC: Math.max(1, r.maxConc), sloTpot: S['load.sloTPOT'], tune: Object.assign({}, r.tune, { bwLine: S['hw.bw'] / 1000 }) });
+  const m = r.mem, b = r.budget;
+  const segs = [
+    { v:m.w, c:'#4cc9f0', n:`权重 ${fmt.gib(m.w)}` },
+    { v:m.kv, c:'#b388ff', n:`KV ${fmt.gib(m.kv)}` },
+    { v:m.act, c:'#ffb703', n:`运行时 ${fmt.gib(m.act)}` },
+    { v:m.draft, c:'#ff5d73', n:`草稿 ${fmt.gib(m.draft)}` }
+  ];
+  const kpis = [
+    ['单卡显存', fmt.gib(m.total), `${(m.total/b*100).toFixed(0)}% 预算`],
+    ['KV 池', fmt.tok(r.kvPoolTok)+' tok', fmt.kv(r.kvTok)+'/token'],
+    ['最大并发', fmt.n(r.maxConc), `${r.dp > 1 ? r.dp + ' 副本 × ' + Math.round(r.maxConc / r.dp) + ' 路' : '受显存约束'}`],
+    ['TTFT', fmt.ms(r.e2e.ttft), +S['load.conc'] > 1 ? `并发 ${S['load.conc']} 时≈${fmt.ms(r.e2e.ttftBatch)}` : S['load.inLen']+' 输入 token'],
+    ['TPOT', fmt.ms(r.dec.tpot), '每输出 token'],
+    ['单路速度', (r.dec.tps / Math.max(1, S['load.conc'])).toFixed(1)+' tok/s', 'decode 单流'],
+    ['系统吞吐', fmt.n(r.e2e.outTps)+' tok/s', fmt.n(r.e2e.reqRate*60)+' req/min'],
+    ['SLO goodput', fmt.n(r.slo.maxTps)+' tok/s', r.slo.best?`${r.slo.best} 路内可行`:'无可行并发'],
+    ['饱和并发 B*', isFinite(r.tune.bstar)?String(Math.round(r.tune.bstar)):'∞', '带宽→算力拐点'],
+    ['算力利用率', (r.tune.utilFl*100).toFixed(0)+'%', 'decode 步内占比']
+  ];
+  const wallColor = k => k === 'HBM 带宽' ? '#4cc9f0' : k === '算力' ? '#ffb703' : k === '卡间通信' ? '#b388ff' : '#ff5d73';
+  const wallRows = r.walls.map(w=>`
+    <div class="wrow">
+      <div class="wtop"><span class="wk">${w.k}</span><span class="wv">${(w.v*100).toFixed(0)}%${w.ms ? ` · ${w.ms < 10 ? w.ms.toFixed(2) : w.ms.toFixed(1)} ms` : ''}</span></div>
+      <div class="wbar"><i style="width:${Math.min(100,w.v*100).toFixed(1)}%;background:${wallColor(w.k)}"></i></div>
+      <div class="wdesc">${w.d}</div>
+    </div>`).join('');
+
+  const moName = (ENGINE.MODELS.find(x => x.id === S['model.id']) || {}).label || '自定义模型';
+  const dtName = (DTYPES.find(d => +d[0] === +S['model.wBytes']) || ['', '?'])[1];
+  const hwName = (ENGINE.HW[S['hw.hwsel']] || {}).n || '自定义卡';
+  const spM = ENGINE.SPEC_METHODS.find(x => x.id === S['spec.method']);
+  const spLabel = +S['spec.on'] ? (spM ? spM.label : '自定义投机') : '无投机';
+  const strip = `<div class="strip">
+    <span><b>${moName}</b></span><span>${dtName}</span><span>${hwName} × ${S['hw.count']}</span>
+    <span>TP=${S['hw.tp']}${(+S['hw.pp']) > 1 ? '×PP=' + S['hw.pp'] : ''}${r.dp > 1 ? ` · ${r.dp} 副本` : ''}</span>
+    <span>${S['load.inLen']} / ${S['load.outLen']} tok</span><span>并发 ${S['load.conc']}</span><span>${spLabel}</span>
+  </div>`;
+
+  return `
+  ${strip}
+  <div class="verdict ${r.verdict.cls}">
+    <div class="vtag">${r.verdict.tag}</div>
+    <div class="vtext">${r.verdict.text}<small>${r.verdict.sub}</small></div>
+  </div>
+  <div class="kpis">${kpis.map(k=>`<div class="kpi"><b>${k[1]}</b><span>${k[0]} · ${k[2]}</span></div>`).join('')}</div>
+
+  <div class="grid2">
+    <div class="card"><h3>显存分解（每卡，预算 ${fmt.gib(b)}）</h3>
+      ${bar(segs, b)}
+      <div class="lg">${segs.map(s=>`<span><i style="background:${s.c}"></i>${s.n}</span>`).join('')}
+      <span><i style="background:#0c1220;border:1px solid #243146"></i>剩余 ${fmt.gib(Math.max(0,b-m.total))}（≈${Math.round(Math.max(0,b-m.total)*r.par/r.kvTok/1000)}k KV token）</span></div>
+      <div class="muted" style="font-size:12px;margin-top:8px">权重 ${fmt.gib(m.w)} · KV ${fmt.gib(m.kv)} · 运行时 ${fmt.gib(m.act)} · 草稿 ${fmt.gib(m.draft)}；每副本 ${r.par} 卡（TP=${S['hw.tp']}${(+S['hw.pp']) > 1 ? '×PP=' + S['hw.pp'] : ''}），全机 ${r.dp} 个副本。权重只跟 TP×PP 有关，<b>加卡不会让单卡权重变小</b>，只会多开副本。vLLM 会把剩余预算全部预分配给 KV 池。</div>
+    </div>
+    <div class="card"><h3>瓶颈诊断（decode 单步 ${fmt.ms(r.dec.stepMs)}，为什么是这些占比）</h3>
+      ${wallRows}
+      <div class="muted" style="font-size:11.5px;margin-top:10px">四条时间/占用并列 → 取最大者即“墙”。带宽与算力取 max（同一时刻只能卡一个），通信与固定开销再叠加。</div>
+    </div>
+  </div>
+
+  <div class="card"><h3>Roofline：算术强度 vs 机器平衡点（${r.tune.ridge.toFixed(0)} FLOP/B）</h3>
+    <div class="charts">
+      <figure class="chart" style="margin:0">${svgRoofline(r2)}<figcaption>屋顶为标称能力；红点是实际达成（已含 MFU / 带宽效率损耗）。prefill 强度高（偏算力），decode 强度低（偏带宽）——这就是 PD 分离的由来。</figcaption></figure>
+      <div>
+        <figure class="chart" style="margin:0 0 12px">${svgCurve(r2)}<figcaption>吞吐随并发上升，直到 ${isFinite(r.tune.bstar)?'B*≈'+Math.round(r.tune.bstar):'算力/显存上限'} 后走平。</figcaption></figure>
+        <figure class="chart" style="margin:0">${svgLat(r2)}<figcaption>TPOT 随并发上升；超过 SLO 的部分即为“不可用吞吐”。</figcaption></figure>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h3>指标计算链（代入值）</h3>
+      <table><thead><tr><th>指标</th><th>公式</th><th class="n">结果</th></tr></thead><tbody>
+      ${r.steps.map(s=>`<tr><td>${s[0]}</td><td><code>${s[1]}</code></td><td class="n">${s[2]}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="card"><h3>决策建议</h3><ul class="adv">${r.adv.map(a=>`<li>${a}</li>`).join('') || '<li class="muted">当前配置无明显瓶颈。</li>'}</ul></div>
+  </div>
+
+  <div class="card"><h3>模型校验：公式 vs 论文 / 本机实测</h3>
+    ${validationHtml()}
+  </div>`;
+}
+
+let VALCACHE = null;
+function validationHtml() {
+  if (!VALCACHE) VALCACHE = ENGINE.runValidation();
+  const v = VALCACHE;
+  const rows = v.F.map(c=>`<tr><td>${c.n}</td><td class="n">${c.p.toFixed(c.u==='路'?0:2)} ${c.u}</td><td class="n">${c.m} ${c.u}</td><td class="n ${c.e<1?'err':'bigerr'}">${c.e.toFixed(1)}%</td><td class="muted">${c.src}</td></tr>`).join('');
+  const rows2 = v.P.map(c=>`<tr><td>${c.n}</td><td class="n">${c.p.toFixed(2)} ${c.u}</td><td class="n">${c.m} ${c.u}</td><td class="n ${c.e<10?'err':'bigerr'}">${c.e.toFixed(1)}%</td><td class="muted">本机压测（runs.csv）</td></tr>`).join('');
+  return `<table><thead><tr><th>条目</th><th class="n">计算</th><th class="n">参考</th><th class="n">误差</th><th>依据</th></tr></thead><tbody>${rows}${rows2}</tbody></table>
+  <div class="muted" style="margin-top:8px;font-size:12px">公式类 5/5 命中；性能类 ${v.P.length} 点平均绝对误差 <b style="color:${v.mape<15?'#39d98a':'#ffb703'}">${v.mape.toFixed(1)}%</b>（最大 ${Math.max(...v.P.map(c=>c.e)).toFixed(1)}%）。效率系数可按你的机台在 ⑤ 中反推校准。</div>`;
+}
+
+function update() {
+  const isPD = +S['pd.on'] === 1;
+  const r = isPD ? ENGINE.computePD(ENGINE.group(S)) : ENGINE.compute(ENGINE.group(S));
+  $('#out').innerHTML = isPD ? viewPD(r) : view(r);
+  const cert = ENGINE.runValidation();
+  $('#cert').innerHTML = `公式 ${cert.F.length}/${cert.F.length} 命中 · 性能 MAPE <b>${cert.mape.toFixed(1)}%</b>`;
+}
+
+/* events */
+document.addEventListener('input', e => {
+  const k = e.target.dataset.k; if (!k) return;
+  const raw = e.target.value;
+  S[k] = (raw !== '' && !isNaN(+raw)) ? +raw : raw;
+  if (k.indexOf('model.') === 0 && k !== 'model.id') { S['model.id'] = 'custom'; syncQuick(); }
+  if (k.indexOf('spec.') === 0 && k !== 'spec.method') { S['spec.method'] = 'custom'; syncQuick(); }
+  if (e.target.tagName === 'SELECT') {
+    if (k === 'model.attn' || k === 'spec.on') renderAdv();
+    syncInputs();
+  }
+  update();
+});
+document.addEventListener('change', e => {
+  const id = e.target.id;
+  if (id === 'qModel') return applyModel(e.target.value);
+  if (id === 'qGpu') return applyGpu(e.target.value);
+  if (id === 'qDtype') { applyDtype(e.target.value); syncInputs(); syncQuick(); update(); return; }
+  if (id === 'qWork') return applyWork(e.target.value);
+  if (id === 'qSpec') return applySpec(e.target.value);
+  if (id === 'qPhw') { S['pd.preHw'] = e.target.value; syncQuick(); update(); return; }
+  if (id === 'qDhw') { S['pd.decHw'] = e.target.value; syncQuick(); update(); return; }
+  if (e.target.dataset.k === 'hw.hwsel') return applyGpu(e.target.value);
+});
+document.addEventListener('input', e => {
+  const id = e.target.id;
+  if (id === 'qCount') {
+    S['hw.count'] = Math.max(1, Math.round(+e.target.value || 1));
+    clampTopology(); syncInputs(); syncQuick(); update();
+    return;
+  }
+  if (id === 'qPcount' || id === 'qDcount' || id === 'qLink') {
+    const v = Math.max(id === 'qLink' ? 0.1 : 1, +e.target.value || 1);
+    if (id === 'qPcount') { S['pd.preCount'] = Math.round(v); S['pd.preTp'] = Math.min(S['pd.preTp'], Math.round(v)); }
+    if (id === 'qDcount') { S['pd.decCount'] = Math.round(v); S['pd.decTp'] = Math.min(S['pd.decTp'], Math.round(v)); }
+    if (id === 'qLink') S['pd.link'] = v;
+    syncQuick(); update();
+  }
+});
+
+/* boot */
+function renderInputsAll() {
+  $('#inputs').innerHTML = (+S['pd.on'] === 1) ? quickHtmlPD() : quickHtml();
+  renderAdv(); syncQuick(); syncInputs();
+}
+renderInputsAll();
+update();
+
+document.querySelectorAll('#modeSwitch .seg').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = +btn.dataset.v;
+    if (+S['pd.on'] === v) return;
+    S['pd.on'] = v;
+    document.querySelectorAll('#modeSwitch .seg').forEach(b => b.classList.toggle('on', +b.dataset.v === v));
+    renderInputsAll();
+    update();
+  });
+});
+
+document.addEventListener('click', e => {
+  const tid = e.target && e.target.id;
+  if (tid === 'btnMaxConc') {
+    const r = ENGINE.compute(ENGINE.group(S));
+    S['load.conc'] = Math.max(1, r.maxConc);
+    syncInputs(); syncQuick(); update();
+    const tip = $('#copyTip'); if (tip) tip.textContent = '已设为显存上限 ' + S['load.conc'] + ' 路';
+    setTimeout(() => { const t = $('#copyTip'); if (t) t.textContent = ''; }, 2500);
+  } else if (tid === 'btnSloConc') {
+    const r = ENGINE.compute(ENGINE.group(S));
+    const tip = $('#copyTip');
+    if (r.slo.best > 0) {
+      S['load.conc'] = r.slo.best;
+      syncInputs(); syncQuick(); update();
+      if (tip) tip.textContent = 'SLO 内最大 ' + S['load.conc'] + ' 路';
+    } else if (tip) {
+      tip.textContent = '当前 SLO 无法满足';
+    }
+    setTimeout(() => { const t = $('#copyTip'); if (t) t.textContent = ''; }, 2500);
+  } else if (tid === 'btnCopy') {
+    const mo = (ENGINE.MODELS.find(x => x.id === S['model.id']) || {}).label || '自定义模型';
+    const dt = (DTYPES.find(d => +d[0] === +S['model.wBytes']) || ['', '?'])[1];
+    let txt;
+    if (+S['pd.on'] === 1) {
+      const r = ENGINE.computePD(ENGINE.group(S));
+      txt = [
+        `${mo}｜${dt}｜P ${r.pre.n}×${r.pre.hw.n} TP${r.pre.tp} → D ${r.dec.n}×${r.dec.hw.n} TP${r.dec.tp}｜链路 ${S['pd.link']} GB/s`,
+        `TTFT ${fmt.ms(r.sys.ttft)}（预填充 ${r.pre.ms.toFixed(0)} + 传输 ${r.xfer.ms.toFixed(1)}）｜TPOT ${fmt.ms(r.dec.tpot)}｜${r.sys.rps.toFixed(1)} req/s`,
+        `瓶颈：${r.walls.map(w => w.k + ' ' + (w.v * 100).toFixed(0) + '%').join(' / ')}`
+      ].join('\n');
+    } else {
+      const r = ENGINE.compute(ENGINE.group(S));
+      const gpu = (ENGINE.HW[S['hw.hwsel']] || {}).n || '自定义卡';
+      txt = [
+        `${mo}｜${S['hw.count']}×${gpu}｜TP=${S['hw.tp']}｜${dt}｜${S['load.inLen']}/${S['load.outLen']} tok｜并发 ${S['load.conc']}`,
+        `单卡显存 ${fmt.gib(r.mem.total)} / ${fmt.gib(r.budget)}｜KV ${fmt.kv(r.kvTok)}/token｜最大并发 ${r.maxConc}`,
+        `TTFT ${fmt.ms(r.e2e.ttft)}｜TPOT ${fmt.ms(r.dec.tpot)}｜系统吞吐 ${Math.round(r.e2e.outTps)} tok/s｜${r.verdict.tag}`
+      ].join('\n');
+    }
+    try { navigator.clipboard.writeText(txt); }
+    catch (err) {
+      const ta = document.createElement('textarea');
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    const tip = $('#copyTip'); if (tip) tip.textContent = '已复制';
+    setTimeout(() => { const t = $('#copyTip'); if (t) t.textContent = ''; }, 2500);
+  }
+});
+</script>
+</body>
+</html>
