@@ -1,4 +1,4 @@
-# LLM 推理选型计算器
+﻿# LLM 推理选型计算器
 
 简体中文 | **[English](README.en.md)**
 
@@ -142,6 +142,42 @@ images/                        # 界面截图
 validation/validate.mjs        # 回归脚本（公式 / 实测 / PD 自检）
 validation/report.md           # 生成的校验报告
 ```
+
+---
+
+## 延伸阅读：PD 分离与推理调度
+
+工具里每一个假设背后都有一篇论文或一个开源实现，按「先读哪篇」排列：
+
+### 论文
+
+| 论文 | 会议 | 与本工具的关系 |
+|---|---|---|
+| [DistServe: Disaggregating Prefill and Decoding](https://arxiv.org/abs/2401.09670) | OSDI'24 | PD 拆分的代表作：按 goodput 而非峰值吞吐优化，对应工具里「TTFT 与 TPOT 解耦」 |
+| [Splitwise: Efficient Generative LLM Inference Using Phase Splitting](https://arxiv.org/abs/2311.18677) | ISCA'24 | 提出两个阶段用不同硬件（prefill 吃算力、decode 吃带宽），是异构选卡的依据 |
+| [Mooncake: A KVCache-centric Disaggregated Architecture](https://arxiv.org/abs/2407.00079) | FAST'25 | 把 KV 传输与复用做成一等公民，对应工具里的 KV 链路容量与传输耗时 |
+| [Llumnix: Dynamic Scheduling for LLM Serving](https://arxiv.org/abs/2406.03243) | OSDI'24 | 跨实例动态重调度，解决工具里假设的「静态配比」不成立时的负载倾斜 |
+| [Sarathi-Serve: Chunked Prefills and Stall-Free Batching](https://arxiv.org/abs/2403.02310) | OSDI'24 | 「prefill 会抢占 decode」的原始分析，对应工具里的排队系数与 chunked prefill |
+| [vLLM / PagedAttention](https://arxiv.org/abs/2309.06180) | SOSP'23 | 分页 KV 与连续批处理，工具里 KV 池／最大并发的口径来源 |
+| [SGLang / RadixAttention](https://arxiv.org/abs/2312.07104) | NeurIPS'24 | 前缀树复用 KV，对应工具里的「前缀命中率」字段 |
+| [AlpaServe: Statistical Multiplexing with Model Parallelism](https://arxiv.org/abs/2302.11665) | NSDI'24 | 多模型共享集群时怎么切并行度，工具里 TP/PP/副本比例的延伸 |
+| [MuxServe: Flexible Spatial-Temporal Multiplexing for Multiple LLM Serving](https://arxiv.org/abs/2404.02015) | ICML'24 | 一个集群混跑多个模型时的 GPU 时空复用，对应工具里「多模型怎么分配卡」 |
+| [Parrot: Efficient Serving of LLM-based Applications](https://arxiv.org/abs/2405.19888) | OSDI'24 | 请求间有依赖（Agent / RAG 链）时的语义调度，比单请求视角更进一步 |
+
+### 开源实现
+
+| 项目 | 说明 |
+|---|---|
+| [vLLM](https://github.com/vllm-project/vllm) | 生产级推理引擎，仓库内有 disaggregated prefill 的示例脚本 |
+| [SGLang](https://github.com/sgl-project/sglang) | 官方支持 prefill/decode 分离部署，RadixAttention 的前缀复用实现 |
+| [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) | 数据中心级推理框架，PD 分离 + KV-aware 路由 |
+| [llm-d](https://github.com/llm-d/llm-d) | Kubernetes 原生的分布式推理栈，在 vLLM 之上做 PD 分离与 KV 路由 |
+| [Mooncake](https://github.com/kvcache-ai/Mooncake) | KV cache 传输与池化的工业实现 |
+| [DistServe](https://github.com/LLMServe/DistServe) | 论文作者的开源实现 |
+| [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA 的高性能实现，含 in-flight batching |
+| [vLLM production-stack](https://github.com/vllm-project/production-stack) | 带 KV-aware 路由的参考部署栈 |
+
+> 读法建议：想理解「为什么要拆」看 DistServe；想理解「拆完怎么配卡」看 Splitwise；想看「真实集群怎么落地」看 Mooncake 与 llm-d；想理解「不拆的时候 prefill 怎么拖慢 decode」看 Sarathi-Serve。
 
 ---
 

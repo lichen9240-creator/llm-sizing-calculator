@@ -141,6 +141,42 @@ validation/report.md           # generated report
 
 ---
 
+## Further reading: PD disaggregation & serving schedulers
+
+Every assumption in the tool traces back to a paper or an open-source implementation.
+
+### Papers
+
+| Paper | Venue | How it maps to this tool |
+|---|---|---|
+| [DistServe: Disaggregating Prefill and Decoding](https://arxiv.org/abs/2401.09670) | OSDI'24 | The canonical PD split: optimises for goodput rather than peak throughput — the origin of "TTFT and TPOT decouple" |
+| [Splitwise: Efficient Generative LLM Inference Using Phase Splitting](https://arxiv.org/abs/2311.18677) | ISCA'24 | Prefill and decode want different hardware (compute vs bandwidth) — the basis for heterogeneous GPU selection |
+| [Mooncake: A KVCache-centric Disaggregated Architecture](https://arxiv.org/abs/2407.00079) | FAST'25 | Treats KV transfer and reuse as first-class citizens — the KV link capacity and transfer time in the tool |
+| [Llumnix: Dynamic Scheduling for LLM Serving](https://arxiv.org/abs/2406.03243) | OSDI'24 | Cross-instance rescheduling for load skew, i.e. what happens when the tool's static P:D ratio breaks |
+| [Sarathi-Serve: Chunked Prefills and Stall-Free Batching](https://arxiv.org/abs/2403.02310) | OSDI'24 | The original analysis of "prefill steals decode" — the queueing factor and chunked prefill |
+| [vLLM / PagedAttention](https://arxiv.org/abs/2309.06180) | SOSP'23 | Paged KV and continuous batching — where the KV pool and max-concurrency numbers come from |
+| [SGLang / RadixAttention](https://arxiv.org/abs/2312.07104) | NeurIPS'24 | Prefix-tree KV reuse — the "prefix hit rate" input field |
+| [AlpaServe: Statistical Multiplexing with Model Parallelism](https://arxiv.org/abs/2302.11665) | NSDI'24 | How to split parallelism when many models share a cluster |
+| [MuxServe: Flexible Spatial-Temporal Multiplexing for Multiple LLM Serving](https://arxiv.org/abs/2404.02015) | ICML'24 | Co-locating multiple models on the same GPUs — relevant once one cluster serves several models |
+| [Parrot: Efficient Serving of LLM-based Applications](https://arxiv.org/abs/2405.19888) | OSDI'24 | Request-level dependencies (Agent / RAG chains) and semantic scheduling |
+
+### Open-source implementations
+
+| Project | What to look at |
+|---|---|
+| [vLLM](https://github.com/vllm-project/vllm) | Production engine; ships a disaggregated-prefill example |
+| [SGLang](https://github.com/sgl-project/sglang) | Official prefill/decode disaggregation and RadixAttention |
+| [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) | Datacenter-scale inference framework with PD split and KV-aware routing |
+| [llm-d](https://github.com/llm-d/llm-d) | Kubernetes-native distributed inference on top of vLLM |
+| [Mooncake](https://github.com/kvcache-ai/Mooncake) | Industrial KV cache transfer / pooling |
+| [DistServe](https://github.com/LLMServe/DistServe) | Authors' reference implementation |
+| [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA's high-performance stack with in-flight batching |
+| [vLLM production-stack](https://github.com/vllm-project/production-stack) | Reference deployment stack with KV-aware routing |
+
+> Suggested order: DistServe for *why split*, Splitwise for *how to pick cards*, Mooncake and llm-d for *how it lands in a real cluster*, Sarathi-Serve for *what goes wrong when you don't split*.
+
+---
+
 ## Known limitations
 
 - Performance numbers depend on three empirical coefficients (MFU, bandwidth efficiency, fixed overhead); expect 10–20% absolute error. Capacity numbers (weights, KV, concurrency) are deterministic formulas accurate to <2%.
