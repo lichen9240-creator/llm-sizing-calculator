@@ -1,10 +1,24 @@
 # LLM 推理选型计算器
 
+简体中文 | **[English](README.en.md)**
+
 > 输入模型、硬件、负载，立刻算出显存、KV、TTFT/TPOT、吞吐，并告诉你卡在哪面墙。
 
-一个**单文件、零依赖、离线可用**的 HTML 工具。双击打开就能用，支持**一体部署**与 **PD 分离（Prefill / Decode 拆开 + 异构选卡）** 两种模式。
+单文件、零依赖、离线可用的 HTML 工具，支持**一体部署**与 **PD 分离（Prefill / Decode 拆开 + 异构选卡）**。
 
-在线体验：`https://lichen9240-creator.github.io/llm-sizing-calculator/`（启用 Pages 后可用）
+**在线体验**：https://lichen9240-creator.github.io/llm-sizing-calculator/
+
+---
+
+## 界面预览
+
+**一体部署**：左边选模型 / 卡 / 场景，右边直接给出显存分解、四类瓶颈占比与每条公式的代入值。
+
+<img src="images/screenshot-mono.png" width="860" alt="一体部署：显存分解与瓶颈诊断">
+
+**PD 分离**：预填充与解码各选各的卡（这里是 P 2×H100 + D 2×H200），额外算出 KV 传输耗时、两侧各自的容量上限与配比。
+
+<img src="images/screenshot-pd.png" width="860" alt="PD 分离：异构选卡与 KV 链路">
 
 ---
 
@@ -25,7 +39,7 @@
 | 分类 | 指标 |
 |---|---|
 | 显存 | 权重 / KV Cache / 运行时（CUDA Graph + workspace）/ 投机草稿 / 剩余可做 KV 池的量 |
-| 容量 | 每 token KV 字节数、KV 池 token 数、按当前上下文的最大并发、按满上下文的最大并发 |
+| 容量 | 每 token KV 字节数、KV 池 token 数、按当前上下文与满上下文的最大并发 |
 | 延迟 | TTFT（含 prefill 计算与排队）、TPOT、端到端、P95 视角的排队估算 |
 | 吞吐 | 单路 tok/s、系统 tok/s、req/min、SLO 内 goodput、饱和并发 B\* |
 | 瓶颈 | 显存墙 / HBM 带宽墙 / 算力墙 / 卡间通信墙，附四条公式的代入值 |
@@ -41,7 +55,7 @@
 一张图看清 decode 单步的四个时间分量：
 
 ```
-TPOT = max(权重+KV 字节 ÷ 带宽, 2·P_act·B ÷ 算力) + 通信 + 固定开销
+TPOT = max(权重 + KV 字节 ÷ 带宽, 2·P_act·B ÷ 算力) + 通信 + 固定开销
 ```
 
 界面上直接给出「带宽 88% / 算力 33%」这样的占比，以及每一行的分母分子。
@@ -57,7 +71,7 @@ TTFT    = t_pre + t_xfer + 首步 + 握手
 系统吞吐 = min(R_pre, R_dec, R_link)
 ```
 
-三条上限哪个最小，哪条就是墙。配比失衡时会提示「P 侧 57% / D 侧 100%，该给 D 加卡」。
+三条上限哪个最小，哪条就是墙。配比失衡时会提示「P 侧 47% / D 侧 100%，该给 D 加卡」。
 
 ---
 
@@ -89,7 +103,7 @@ TTFT    = t_pre + t_xfer + 首步 + 握手
 | Llama-3-70B 权重 | 141.2 GB | 70.6B × 2B | 0.1% |
 | H100 机器平衡点 | 295.2 FLOP/B | 989 TFLOPS ÷ 3.35 TB/s | 0.1% |
 
-**② 性能回归**（真实压测数据：Qwen3.8-27B-FP8 × 2×RTX5090）
+**② 性能回归**（真实压测：Qwen3.8-27B-FP8 × 2×RTX5090）
 
 7 个实测点 MAPE **7.3%**，最大偏差出现在高并发（调度与队列占比上升）。
 
@@ -124,9 +138,9 @@ node validation/validate.mjs
 
 ```
 index.html                     # 计算器本体（单文件，含 PD 模式）
+images/                        # 界面截图
 validation/validate.mjs        # 回归脚本（公式 / 实测 / PD 自检）
 validation/report.md           # 生成的校验报告
-docs/案例-企业推理平台扩容.docx   # 用这套方法做的完整选型交付案例
 ```
 
 ---
@@ -141,4 +155,4 @@ docs/案例-企业推理平台扩容.docx   # 用这套方法做的完整选型�
 
 ## License
 
-MIT
+[MIT](LICENSE)
